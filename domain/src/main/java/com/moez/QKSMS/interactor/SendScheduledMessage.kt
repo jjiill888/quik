@@ -40,19 +40,36 @@ class SendScheduledMessage @Inject constructor(
         return Flowable.just(params)
             .mapNotNull(scheduledMessageRepo::getScheduledMessage)
             .flatMap { message ->
-                if (message.sendAsGroup) {
+                // Split into individual messages if not sending as group
+                val messages = if (message.sendAsGroup) {
                     listOf(message)
                 } else {
                     message.recipients.map { recipient -> message.copy(recipients = RealmList(recipient)) }
+                }
+
+                // Send all the messages
+                messages.map { msg ->
+                    val threadId = TelephonyCompat.getOrCreateThreadId(context, msg.recipients)
+                    val attachments = msg.attachments.mapNotNull(Uri::parse).map { Attachment(context, it) }
+                    SendMessage.Params(msg.subId, threadId, msg.recipients, msg.body, attachments)
                 }.toFlowable()
+                    .flatMap(sendMessage::buildObservable)
+                    // Return the original message after all sends complete
+                    .toList()
+                    .map { message }
+                    .toFlowable()
             }
-            .map { message ->
-                val threadId = TelephonyCompat.getOrCreateThreadId(context, message.recipients)
-                val attachments = message.attachments.mapNotNull(Uri::parse).map { Attachment(context, it) }
-                SendMessage.Params(message.subId, threadId, message.recipients, message.body, attachments)
+            .doOnNext {
+                // Mark message as completed or delete it (only executes once per scheduled message)
+                val message = scheduledMessageRepo.getScheduledMessage(params)
+                if (message != null && message.groupId != 0L) {
+                    // If message is part of a group, mark it as completed
+                    scheduledMessageRepo.markScheduledMessageComplete(params)
+                } else {
+                    // If message is not part of a group, delete it (old behavior)
+                    deleteScheduledMessagesInteractor.execute(listOf(params))
+                }
             }
-            .flatMap(sendMessage::buildObservable)
-            .doOnNext { deleteScheduledMessagesInteractor.execute(listOf(params)) }
     }
 
 }

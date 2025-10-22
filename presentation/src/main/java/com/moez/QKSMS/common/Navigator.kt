@@ -119,30 +119,37 @@ class Navigator @Inject constructor(
     }
 
     fun showCompose(scheduledMessage: ScheduledMessage) {
-        val scheduledThreadId = TelephonyCompat.getOrCreateThreadId(
-            context,
-            scheduledMessage.recipients
-        )
+        // Convert RealmList to regular List to avoid Realm threading issues
+        val recipients = scheduledMessage.recipients.map { it }
+        val body = scheduledMessage.body
+        val attachmentsList = scheduledMessage.attachments.map { it }
 
         val intent = Intent(context, ComposeActivity::class.java)
-        intent.putExtra(Intent.EXTRA_TEXT, scheduledMessage.body)
-        intent.putExtra("threadId", scheduledThreadId)
+        intent.putExtra(Intent.EXTRA_TEXT, body)
+        // DON'T pass threadId - we don't want to load conversation history for editing scheduled messages
+        // This prevents OutOfMemoryError when the conversation has many messages
+        intent.putExtra("threadId", 0L)  // 0 means no conversation to load
         intent.putExtra("subscriptionId", scheduledMessage.subId)
         intent.putExtra("sendAsGroup", scheduledMessage.sendAsGroup)
         intent.putExtra("scheduleDateTime", scheduledMessage.date)
+        intent.putExtra("scheduledMessageId", scheduledMessage.id)  // Add message ID to preserve it
+        intent.putExtra("groupId", scheduledMessage.groupId)  // Add group ID to preserve it
 
-        scheduledMessage.recipients
-            .takeIf { it.isNotEmpty() }
-            ?.let { intent.putStringArrayListExtra("addresses", ArrayList(it)) }
+        // Convert to ArrayList with regular strings
+        if (recipients.isNotEmpty()) {
+            intent.putStringArrayListExtra("addresses", ArrayList(recipients))
+        }
 
-        scheduledMessage.attachments
-            .takeIf { it.isNotEmpty() }
-            ?.mapNotNull {
+        // Convert attachments
+        if (attachmentsList.isNotEmpty()) {
+            val validUris = attachmentsList.mapNotNull {
                 val uri = Uri.parse(it)
-                if (uri.resourceExists(context)) uri
-                else null
+                if (uri.resourceExists(context)) uri else null
             }
-            ?.let { intent.putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(it)) }
+            if (validUris.isNotEmpty()) {
+                intent.putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(validUris))
+            }
+        }
 
         startActivity(intent)
     }

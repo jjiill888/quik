@@ -98,9 +98,9 @@ class ScheduledGroupDetailActivity : QkThemedActivity(), ScheduledGroupDetailVie
         toolbar.menu.findItem(R.id.copy)?.isVisible =
             ((scheduledMessageAdapter.itemCount != 0) && (state.selectedMessages != 0))
         toolbar.menu.findItem(R.id.send_now)?.isVisible =
-            ((scheduledMessageAdapter.itemCount != 0) && (state.selectedMessages != 0))
+            ((scheduledMessageAdapter.itemCount != 0) && (state.selectedMessages != 0) && !state.allSelectedCompleted)
         toolbar.menu.findItem(R.id.edit_message)?.isVisible =
-            ((scheduledMessageAdapter.itemCount != 0) && (state.selectedMessages == 1))
+            ((scheduledMessageAdapter.itemCount != 0) && (state.selectedMessages == 1) && !state.selectedMessageCompleted)
     }
 
     override fun onBackPressed() = backPressedIntent.onNext(Unit)

@@ -36,7 +36,7 @@ class QkRealmMigration @Inject constructor(
 ) : RealmMigration {
 
     companion object {
-        const val SchemaVersion: Long = 15
+        const val SchemaVersion: Long = 16
     }
 
     @SuppressLint("ApplySharedPref")
@@ -294,6 +294,19 @@ class QkRealmMigration @Inject constructor(
                 ?.addField("groupId", Long::class.java, FieldAttribute.REQUIRED)
                 ?.transform { msg ->
                     msg.setLong("groupId", 0L)
+                }
+
+            version++
+        }
+
+        if (version == 15L) {
+            // Add completed status fields to ScheduledMessage
+            realm.schema.get("ScheduledMessage")
+                ?.addField("completed", Boolean::class.java, FieldAttribute.REQUIRED)
+                ?.addField("completedAt", Long::class.java, FieldAttribute.REQUIRED)
+                ?.transform { msg ->
+                    msg.setBoolean("completed", false)
+                    msg.setLong("completedAt", 0L)
                 }
 
             version++

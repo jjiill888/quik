@@ -49,7 +49,8 @@ class ScheduledGroupRepositoryImpl @Inject constructor() : ScheduledGroupReposit
         return Realm.getDefaultInstance()
             .where(ScheduledMessage::class.java)
             .equalTo("groupId", groupId)
-            .sort("date")
+            .sort("completed")  // false (incomplete) first, then true (completed)
+            .sort("id", io.realm.Sort.DESCENDING)  // newest first (higher id = newer)
             .findAll()
     }
 

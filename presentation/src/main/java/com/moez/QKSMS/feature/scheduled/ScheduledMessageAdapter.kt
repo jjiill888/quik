@@ -50,6 +50,7 @@ class ScheduledMessageAdapter @Inject constructor(
     private val imagesViewPool = RecyclerView.RecycledViewPool()
 
     val clicks: Subject<Long> = PublishSubject.create()
+    val completedClicks: Subject<Long> = PublishSubject.create()  // For clicking completed messages
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): QkBindingViewHolder<ScheduledMessageListItemBinding> {
         val binding = ScheduledMessageListItemBinding.inflate(
@@ -60,15 +61,31 @@ class ScheduledMessageAdapter @Inject constructor(
         binding.attachments.setRecycledViewPool(imagesViewPool)
 
         return QkBindingViewHolder(binding).apply {
+            // Single click: emit click event (for editing)
             binding.root.setOnClickListener {
                 val message = getItem(adapterPosition) ?: return@setOnClickListener
-                if (toggleSelection(message.id, false))
+                // If in selection mode (toggleSelection without force will return false if not in selection mode)
+                if (toggleSelection(message.id, force = false)) {
+                    // We're in selection mode, update UI
                     binding.root.isActivated = isSelected(message.id)
+                } else {
+                    // Not in selection mode
+                    if (message.completed) {
+                        // For completed messages, show the conversation with search
+                        completedClicks.onNext(message.id)  // Pass message ID, not conversation ID
+                    } else {
+                        // For pending messages, allow editing
+                        clicks.onNext(message.id)
+                    }
+                }
             }
-            binding.root.setOnClickListener {
-                val message = getItem(adapterPosition) ?: return@setOnClickListener
+
+            // Long click: enter selection mode
+            binding.root.setOnLongClickListener {
+                val message = getItem(adapterPosition) ?: return@setOnLongClickListener false
                 toggleSelection(message.id)
                 binding.root.isActivated = isSelected(message.id)
+                true
             }
         }
     }
@@ -86,6 +103,12 @@ class ScheduledMessageAdapter @Inject constructor(
 
         holder.binding.date.text = dateFormatter.getScheduledTimestamp(message.date)
         holder.binding.body.text = message.body
+
+        // Show completed label if message has been sent
+        holder.binding.completedLabel.isVisible = message.completed
+
+        // Dim the message if it's completed
+        holder.binding.root.alpha = if (message.completed) 0.5f else 1.0f
 
         // update the selected/highlighted state
         holder.binding.root.isActivated = isSelected(message.id) || highlight == message.id

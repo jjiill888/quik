@@ -56,9 +56,55 @@ class ScheduledGroupDetailViewModel @Inject constructor(
 
         // Update the state when the message selected count changes
         view.messagesSelectedIntent
-            .map { selection -> selection.size }
             .autoDisposable(view.scope())
-            .subscribe { newState { copy(selectedMessages = it) } }
+            .subscribe { selection ->
+                val count = selection.size
+                // Check if the single selected message is completed
+                val singleCompleted = if (count == 1) {
+                    scheduledMessageRepo.getScheduledMessage(selection.first())?.completed == true
+                } else {
+                    false
+                }
+                // Check if all selected messages are completed
+                val allCompleted = if (count > 0) {
+                    selection.all { id ->
+                        scheduledMessageRepo.getScheduledMessage(id)?.completed == true
+                    }
+                } else {
+                    false
+                }
+                newState {
+                    copy(
+                        selectedMessages = count,
+                        selectedMessageCompleted = singleCompleted,
+                        allSelectedCompleted = allCompleted
+                    )
+                }
+            }
+
+        // Handle direct message click for editing (when not in selection mode)
+        (view as? ScheduledGroupDetailActivity)?.let { activity ->
+            activity.scheduledMessageAdapter.clicks
+                .autoDisposable(view.scope())
+                .subscribe { messageId ->
+                    scheduledMessageRepo.getScheduledMessage(messageId)?.let { message ->
+                        navigator.showCompose(message)
+                    }
+                }
+
+            // Handle completed message click to view conversation with search query
+            activity.scheduledMessageAdapter.completedClicks
+                .autoDisposable(view.scope())
+                .subscribe { messageId ->
+                    scheduledMessageRepo.getScheduledMessage(messageId)?.let { message ->
+                        if (message.conversationId > 0 && message.completed) {
+                            // Use the message body as search query to highlight it in the conversation
+                            val searchQuery = message.body.take(50)  // Use first 50 chars as search
+                            navigator.showConversation(message.conversationId, searchQuery)
+                        }
+                    }
+                }
+        }
 
         // Toggle select all / select none
         view.optionsItemIntent
@@ -140,15 +186,15 @@ class ScheduledGroupDetailViewModel @Inject constructor(
                 view.clearSelection()
             }
 
-        // Edit message (fired after the confirmation dialog has been shown)
+        // Edit message (fired after the confirmation dialog has been shown from menu)
         view.editScheduledMessage
             .observeOn(AndroidSchedulers.mainThread())
             .subscribeOn(Schedulers.io())
             .autoDisposable(view.scope())
             .subscribe {
-                scheduledMessageRepo.getScheduledMessage(it)?.let {
-                    navigator.showCompose(it)
-                    scheduledMessageRepo.deleteScheduledMessage(it.id)
+                scheduledMessageRepo.getScheduledMessage(it)?.let { message ->
+                    // Don't delete the message here; let ComposeViewModel handle update
+                    navigator.showCompose(message)
                 }
                 view.clearSelection()
             }

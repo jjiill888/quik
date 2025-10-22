@@ -28,5 +28,7 @@ data class ScheduledGroupDetailState(
     val scheduledMessages: RealmResults<ScheduledMessage>? = null,
     val selectedMessages: Int = 0,
     val loading: Boolean = true,
-    val hasMessages: Boolean = false
+    val hasMessages: Boolean = false,
+    val selectedMessageCompleted: Boolean = false,  // true if the single selected message is completed
+    val allSelectedCompleted: Boolean = false  // true if all selected messages are completed
 )

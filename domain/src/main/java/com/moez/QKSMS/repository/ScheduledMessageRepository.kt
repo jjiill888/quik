@@ -74,4 +74,9 @@ interface ScheduledMessageRepository {
      */
     fun getAllScheduledMessageIdsSnapshot(): List<Long>
 
+    /**
+     * Mark a scheduled message as completed
+     */
+    fun markScheduledMessageComplete(id: Long)
+
 }

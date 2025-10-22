@@ -105,6 +105,7 @@ class ComposeViewModel @Inject constructor(
     @Named("subscriptionId") val sharedSubscriptionId: Int,
     @Named("sendAsGroup") val sharedSendAsGroup: Boolean?,
     @Named("scheduleDateTime") val sharedScheduledDateTime: Long,
+    @Named("scheduledMessageId") private val scheduledMessageId: Long,
     private val contactRepo: ContactRepository,
     private val context: Context,
     private val activeConversationManager: ActiveConversationManager,
@@ -1138,20 +1139,32 @@ class ComposeViewModel @Inject constructor(
 
                 when {
                     // Scheduling a message
-                    state.scheduled != 0L -> addScheduledMessage.execute(
-                        AddScheduledMessage.Params(
-                            state.scheduled,
-                            subId,
-                            addresses,
-                            sendAsGroup,
-                            body.toString(),
-                            state.attachments.map { it.uri.toString() },
-                            conversationId,
-                            groupId
-                        )
-                    ).also {
-                        newState { copy(scheduled = 0, hasScheduledMessages = true ) }
-                        showScheduledToast = true
+                    state.scheduled != 0L -> {
+                        // If editing an existing scheduled message, delete the old one first
+                        // But ONLY if it's not completed (completed messages should be preserved)
+                        if (scheduledMessageId > 0) {
+                            val existingMessage = scheduledMessageRepo.getScheduledMessage(scheduledMessageId)
+                            if (existingMessage != null && !existingMessage.completed) {
+                                // Only delete if not completed
+                                scheduledMessageRepo.deleteScheduledMessage(scheduledMessageId)
+                            }
+                        }
+
+                        addScheduledMessage.execute(
+                            AddScheduledMessage.Params(
+                                state.scheduled,
+                                subId,
+                                addresses,
+                                sendAsGroup,
+                                body.toString(),
+                                state.attachments.map { it.uri.toString() },
+                                conversationId,
+                                groupId
+                            )
+                        ).also {
+                            newState { copy(scheduled = 0, hasScheduledMessages = true ) }
+                            showScheduledToast = true
+                        }
                     }
 
                     // sending a group message

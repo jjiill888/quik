@@ -106,4 +106,19 @@ class ScheduledMessageRepositoryImpl @Inject constructor() : ScheduledMessageRep
                 .map { it.id }
         }
     }
+
+    override fun markScheduledMessageComplete(id: Long) {
+        Realm.getDefaultInstance().use { realm ->
+            realm.executeTransaction {
+                val message = realm.where(ScheduledMessage::class.java)
+                    .equalTo("id", id)
+                    .findFirst()
+
+                message?.let {
+                    it.completed = true
+                    it.completedAt = System.currentTimeMillis()
+                }
+            }
+        }
+    }
 }

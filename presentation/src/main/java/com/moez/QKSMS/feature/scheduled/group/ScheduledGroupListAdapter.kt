@@ -38,53 +38,110 @@ class ScheduledGroupListAdapter @Inject constructor(
 
     val groupClicks: Subject<Long> = PublishSubject.create()
 
+    // Cache for sorted group indices and message counts
+    private var sortedIndices: List<Int> = emptyList()
+    private val groupStats = mutableMapOf<Long, GroupStats>()  // groupId -> stats
+
+    data class GroupStats(
+        val totalCount: Int,
+        val completedCount: Int,
+        val pendingCount: Int,
+        val isAllCompleted: Boolean
+    )
+
+    private fun updateSortedIndices() {
+        val groups = data ?: return
+        groupStats.clear()
+
+        // Create list of (index, group, isCompleted) tuples with cached stats
+        val indexedGroups = groups.indices.map { index ->
+            val group = groups[index]!!
+
+            // Query messages once and create snapshot to avoid memory issues
+            val messages = scheduledMessageRepo.getScheduledMessages()
+                .where()
+                .equalTo("groupId", group.id)
+                .findAll()
+                .createSnapshot()
+
+            val totalCount = messages.size
+            val completedCount = messages.count { it.completed }
+            val pendingCount = totalCount - completedCount
+            val isCompleted = totalCount > 0 && completedCount == totalCount
+
+            // Cache stats for this group
+            groupStats[group.id] = GroupStats(totalCount, completedCount, pendingCount, isCompleted)
+
+            Triple(index, group, isCompleted)
+        }
+
+        // Sort: incomplete groups first (newest first), then completed groups (newest first)
+        sortedIndices = indexedGroups.sortedWith(
+            compareBy<Triple<Int, ScheduledGroup, Boolean>> { it.third }  // false (incomplete) first
+                .thenByDescending { it.second.createdAt }  // newest first
+        ).map { it.first }
+    }
+
+    override fun updateData(data: io.realm.OrderedRealmCollection<ScheduledGroup>?) {
+        super.updateData(data)
+        updateSortedIndices()
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): QkViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.scheduled_group_list_item, parent, false)
         return QkViewHolder(view).apply {
             view.setOnClickListener {
-                val group = data?.get(adapterPosition)
+                // Map display position to actual data position
+                val actualPosition = sortedIndices.getOrNull(adapterPosition) ?: adapterPosition
+                val group = data?.get(actualPosition)
                 group?.let { groupClicks.onNext(it.id) }
             }
         }
     }
 
     override fun onBindViewHolder(holder: QkViewHolder, position: Int) {
-        val group = data?.get(position) ?: return
+        // Map display position to actual data position
+        val actualPosition = sortedIndices.getOrNull(position) ?: position
+        val group = data?.get(actualPosition) ?: return
         val view = holder.itemView
-        val context = view.context
 
         view.groupName.text = group.name
         view.groupDescription.text = group.description
         view.groupDescription.visibility = if (group.description.isNotEmpty()) View.VISIBLE else View.GONE
 
-        // Get all scheduled messages for this group
-        val allMessages = scheduledMessageRepo.getScheduledMessages()
-            .where()
-            .equalTo("groupId", group.id)
-            .findAll()
+        // Get cached stats for this group (no DB query needed!)
+        val stats = groupStats[group.id]
 
-        val totalCount = allMessages.size
+        if (stats != null) {
+            // Update message count text showing total
+            val messageCountText = if (stats.totalCount == 1) {
+                "${stats.totalCount} message"
+            } else {
+                "${stats.totalCount} messages"
+            }
+            view.messageCount.text = messageCountText
 
-        // Count pending messages (messages with date in the future)
-        val now = System.currentTimeMillis()
-        val pendingCount = allMessages.count { it.date > now }
-
-        // Update message count text
-        val messageCountText = if (totalCount == 1) {
-            "$totalCount message"
+            // Update status: show "X completed, Y pending" or just "X pending"
+            val statusText = when {
+                stats.completedCount > 0 && stats.pendingCount > 0 -> {
+                    "${stats.completedCount} completed, ${stats.pendingCount} pending"
+                }
+                stats.pendingCount > 0 -> {
+                    if (stats.pendingCount == 1) "${stats.pendingCount} pending"
+                    else "${stats.pendingCount} pending"
+                }
+                stats.completedCount > 0 -> {
+                    "${stats.completedCount} completed"
+                }
+                else -> ""
+            }
+            view.pendingCount.text = statusText
+            view.pendingCount.visibility = if (statusText.isNotEmpty()) View.VISIBLE else View.GONE
         } else {
-            "$totalCount messages"
+            // Fallback if stats not available (shouldn't happen)
+            view.messageCount.text = "0 messages"
+            view.pendingCount.visibility = View.GONE
         }
-        view.messageCount.text = messageCountText
-
-        // Update pending count text
-        val pendingCountText = if (pendingCount == 1) {
-            "$pendingCount pending"
-        } else {
-            "$pendingCount pending"
-        }
-        view.pendingCount.text = pendingCountText
-        view.pendingCount.visibility = if (pendingCount > 0) View.VISIBLE else View.GONE
     }
 }

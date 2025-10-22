@@ -41,8 +41,14 @@ class ComposeActivityModule {
 
     @Provides
     @Named("addresses")
-    fun provideAddresses(activity: ComposeActivity): List<String> =
-        if ((activity.intent?.data?.scheme == "sms") || (activity.intent?.data?.scheme == "smsto"))
+    fun provideAddresses(activity: ComposeActivity): List<String> {
+        // First check if addresses were passed as an extra (e.g., from scheduled message)
+        activity.intent?.getStringArrayListExtra("addresses")?.let { addresses ->
+            if (addresses.isNotEmpty()) return addresses
+        }
+
+        // Otherwise check if addresses are in the intent data URI
+        return if ((activity.intent?.data?.scheme == "sms") || (activity.intent?.data?.scheme == "smsto"))
             activity.intent?.data
                 ?.schemeSpecificPart
                 ?.removeSuffix("?${activity.intent?.data?.query}")
@@ -51,6 +57,7 @@ class ComposeActivityModule {
                 ?: listOf()
         else
             listOf()
+    }
 
     @Provides
     @Named("text")
@@ -117,6 +124,11 @@ class ComposeActivityModule {
     @Named("scheduleDateTime")
     fun provideSharedScheduleDateTime(activity: ComposeActivity): Long =
         activity.intent.getLongExtra("scheduleDateTime", 0L)
+
+    @Provides
+    @Named("scheduledMessageId")
+    fun provideScheduledMessageId(activity: ComposeActivity): Long =
+        activity.intent.getLongExtra("scheduledMessageId", 0L)
 
     @Provides
     @IntoMap

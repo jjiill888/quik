@@ -31,7 +31,9 @@ open class ScheduledMessage(
     var body: String = "",
     var attachments: RealmList<String> = RealmList(),
     var conversationId: Long = 0,
-    var groupId: Long = 0  // 0 means not in any group
+    var groupId: Long = 0,  // 0 means not in any group
+    var completed: Boolean = false,  // true if message has been sent
+    var completedAt: Long = 0  // timestamp when message was sent
 ) : RealmObject() {
 
     fun copy(
@@ -43,10 +45,12 @@ open class ScheduledMessage(
         body: String = this.body,
         attachments: RealmList<String> = this.attachments,
         conversationId: Long = this.conversationId,
-        groupId: Long = this.groupId
+        groupId: Long = this.groupId,
+        completed: Boolean = this.completed,
+        completedAt: Long = this.completedAt
     ): ScheduledMessage {
 
-        return ScheduledMessage(id, date, subId, recipients, sendAsGroup, body, attachments, conversationId, groupId)
+        return ScheduledMessage(id, date, subId, recipients, sendAsGroup, body, attachments, conversationId, groupId, completed, completedAt)
     }
 
 }
