@@ -1,4 +1,22 @@
-package dev.octoshrimpy.quik.feature.scheduled
+/*
+ * Copyright (C) 2017 Moez Bhatti <moez.bhatti@gmail.com>
+ *
+ * This file is part of QKSMS.
+ *
+ * QKSMS is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * QKSMS is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with QKSMS.  If not, see <http://www.gnu.org/licenses/>.
+ */
+package dev.octoshrimpy.quik.feature.scheduled.group
 
 import android.content.Context
 import com.uber.autodispose.android.lifecycle.scope
@@ -9,7 +27,7 @@ import dev.octoshrimpy.quik.common.base.QkViewModel
 import dev.octoshrimpy.quik.common.util.ClipboardUtils
 import dev.octoshrimpy.quik.interactor.DeleteScheduledMessages
 import dev.octoshrimpy.quik.interactor.SendScheduledMessage
-import dev.octoshrimpy.quik.manager.BillingManager
+import dev.octoshrimpy.quik.repository.ScheduledGroupRepository
 import dev.octoshrimpy.quik.repository.ScheduledMessageRepository
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.rxkotlin.plusAssign
@@ -17,45 +35,43 @@ import io.reactivex.schedulers.Schedulers
 import javax.inject.Inject
 import javax.inject.Named
 
-class ScheduledViewModel @Inject constructor(
-    @Named("conversationId") private val conversationId: Long?,
-    billingManager: BillingManager,
+class ScheduledGroupDetailViewModel @Inject constructor(
+    @Named("groupId") private val groupId: Long,
     private val context: Context,
     private val navigator: Navigator,
+    private val scheduledGroupRepo: ScheduledGroupRepository,
     private val scheduledMessageRepo: ScheduledMessageRepository,
     private val sendScheduledMessageInteractor: SendScheduledMessage,
-    private val deleteScheduledMessagesInteractor: DeleteScheduledMessages,
-) : QkViewModel<ScheduledView, ScheduledState>(ScheduledState(
-    scheduledMessages = scheduledMessageRepo.getScheduledMessages(),
-    conversationId = conversationId
-)) {
+    private val deleteScheduledMessagesInteractor: DeleteScheduledMessages
+) : QkViewModel<ScheduledGroupDetailView, ScheduledGroupDetailState>(
+    ScheduledGroupDetailState(groupId = groupId)
+) {
 
     init {
-        loadMessages(conversationId)
-        disposables += billingManager.upgradeStatus
-            .subscribe { upgraded -> newState { copy(upgraded = upgraded) } }
+        loadGroupData()
     }
 
-    override fun bindView(view: ScheduledView) {
+    override fun bindView(view: ScheduledGroupDetailView) {
         super.bindView(view)
 
-        // update the state when the message selected count changes
+        // Update the state when the message selected count changes
         view.messagesSelectedIntent
             .map { selection -> selection.size }
             .autoDisposable(view.scope())
             .subscribe { newState { copy(selectedMessages = it) } }
 
-        // toggle select all / select none
+        // Toggle select all / select none
         view.optionsItemIntent
             .filter { it == R.id.select_all }
             .autoDisposable(view.scope())
             .subscribe { view.toggleSelectAll() }
 
-        // show the delete message dialog if one or more messages selected
+        // Show the delete message dialog if one or more messages selected
         view.optionsItemIntent
             .filter { it == R.id.delete }
             .withLatestFrom(view.messagesSelectedIntent) { _, selectedMessages ->
-                selectedMessages }
+                selectedMessages
+            }
             .autoDisposable(view.scope())
             .subscribe {
                 val ids = it.mapNotNull(scheduledMessageRepo::getScheduledMessage)
@@ -63,17 +79,17 @@ class ScheduledViewModel @Inject constructor(
                 view.showDeleteDialog(ids)
             }
 
-
-        // copy the selected message text to the clipboard
+        // Copy the selected message text to the clipboard
         view.optionsItemIntent
             .filter { it == R.id.copy }
             .withLatestFrom(view.messagesSelectedIntent) { _, selectedMessages ->
-                selectedMessages }
+                selectedMessages
+            }
             .autoDisposable(view.scope())
             .subscribe {
                 val messages = it
                     .mapNotNull(scheduledMessageRepo::getScheduledMessage)
-                    .sortedBy { it.date }   // same order as messages on screen
+                    .sortedBy { it.date }
                 val text = when (messages.size) {
                     1 -> messages.first().body
                     else -> messages.fold(StringBuilder()) { acc, message ->
@@ -86,23 +102,25 @@ class ScheduledViewModel @Inject constructor(
                 ClipboardUtils.copy(context, text.toString())
             }
 
-        // send the messages now menu item selected
+        // Send the messages now menu item selected
         view.optionsItemIntent
             .filter { it == R.id.send_now }
             .withLatestFrom(view.messagesSelectedIntent) { _, selectedMessages ->
-                selectedMessages }
+                selectedMessages
+            }
             .autoDisposable(view.scope())
             .subscribe { view.showSendNowDialog(it) }
 
-        // edit message menu item selected
+        // Edit message menu item selected
         view.optionsItemIntent
             .filter { it == R.id.edit_message }
             .withLatestFrom(view.messagesSelectedIntent) { _, selectedMessage ->
-                selectedMessage.first() }
+                selectedMessage.first()
+            }
             .autoDisposable(view.scope())
             .subscribe { view.showEditMessageDialog(it) }
 
-        // delete message(s) (fired after the confirmation dialog has been shown)
+        // Delete message(s) (fired after the confirmation dialog has been shown)
         view.deleteScheduledMessages
             .observeOn(AndroidSchedulers.mainThread())
             .subscribeOn(Schedulers.io())
@@ -112,7 +130,7 @@ class ScheduledViewModel @Inject constructor(
                 view.clearSelection()
             }
 
-        // send message(s) now (fired after the confirmation dialog has been shown)
+        // Send message(s) now (fired after the confirmation dialog has been shown)
         view.sendScheduledMessages
             .observeOn(AndroidSchedulers.mainThread())
             .subscribeOn(Schedulers.io())
@@ -122,8 +140,7 @@ class ScheduledViewModel @Inject constructor(
                 view.clearSelection()
             }
 
-
-        // edit message (fired after the confirmation dialog has been shown)
+        // Edit message (fired after the confirmation dialog has been shown)
         view.editScheduledMessage
             .observeOn(AndroidSchedulers.mainThread())
             .subscribeOn(Schedulers.io())
@@ -136,7 +153,7 @@ class ScheduledViewModel @Inject constructor(
                 view.clearSelection()
             }
 
-        // navigate back or unselect
+        // Navigate back or unselect
         view.optionsItemIntent
             .filter { it == android.R.id.home }
             .map { }
@@ -150,27 +167,28 @@ class ScheduledViewModel @Inject constructor(
                 }
             }
 
-        view.composeIntent
+        // Add message button clicked
+        view.addMessageIntent
             .autoDisposable(view.scope())
             .subscribe {
+                // TODO: Navigate to compose with groupId parameter
                 navigator.showCompose(mode = "scheduling")
                 view.clearSelection()
             }
-
-        view.upgradeIntent
-            .autoDisposable(view.scope())
-            .subscribe { navigator.showQksmsPlusActivity("schedule_fab") }
-
-        view.createGroupIntent
-            .autoDisposable(view.scope())
-            .subscribe { navigator.showScheduledGroupCreate() }
     }
 
-    private fun loadMessages(conversationId: Long?) {
-        val results = if (conversationId != null)
-            scheduledMessageRepo.getScheduledMessagesForConversation(conversationId)
-        else
-            scheduledMessageRepo.getScheduledMessages()
-        newState { copy(scheduledMessages = results) }
+    private fun loadGroupData() {
+        val group = scheduledGroupRepo.getScheduledGroup(groupId)
+        val messages = scheduledGroupRepo.getScheduledMessagesForGroup(groupId)
+
+        newState {
+            copy(
+                groupName = group?.name ?: "Unknown Group",
+                groupDescription = group?.description ?: "",
+                scheduledMessages = messages,
+                hasMessages = !messages.isEmpty(),
+                loading = false
+            )
+        }
     }
 }

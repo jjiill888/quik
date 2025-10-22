@@ -89,6 +89,8 @@ import dev.octoshrimpy.quik.repository.MessageRepository
 import dev.octoshrimpy.quik.repository.MessageRepositoryImpl
 import dev.octoshrimpy.quik.repository.ScheduledMessageRepository
 import dev.octoshrimpy.quik.repository.ScheduledMessageRepositoryImpl
+import dev.octoshrimpy.quik.repository.ScheduledGroupRepository
+import dev.octoshrimpy.quik.repository.ScheduledGroupRepositoryImpl
 import dev.octoshrimpy.quik.repository.SyncRepository
 import dev.octoshrimpy.quik.repository.SyncRepositoryImpl
 import dev.octoshrimpy.quik.worker.InjectionWorkerFactory
@@ -217,6 +219,9 @@ class AppModule(private var application: Application) {
 
     @Provides
     fun provideScheduledMessagesRepository(repository: ScheduledMessageRepositoryImpl): ScheduledMessageRepository = repository
+
+    @Provides
+    fun provideScheduledGroupRepository(repository: ScheduledGroupRepositoryImpl): ScheduledGroupRepository = repository
 
     @Provides
     fun provideSyncRepository(repository: SyncRepositoryImpl): SyncRepository = repository

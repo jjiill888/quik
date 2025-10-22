@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with QKSMS.  If not, see <http://www.gnu.org/licenses/>.
  */
-package dev.octoshrimpy.quik.feature.scheduled
+package dev.octoshrimpy.quik.feature.scheduled.group
 
 import android.os.Bundle
 import android.view.Menu
@@ -31,21 +31,19 @@ import dev.octoshrimpy.quik.R
 import dev.octoshrimpy.quik.common.base.QkThemedActivity
 import dev.octoshrimpy.quik.common.util.extensions.setBackgroundTint
 import dev.octoshrimpy.quik.common.util.extensions.setTint
+import dev.octoshrimpy.quik.feature.scheduled.ScheduledMessageAdapter
 import io.reactivex.subjects.PublishSubject
 import io.reactivex.subjects.Subject
 import kotlinx.android.synthetic.main.main_activity.toolbar
-import kotlinx.android.synthetic.main.scheduled_activity.*
+import kotlinx.android.synthetic.main.scheduled_group_detail_activity.*
 import javax.inject.Inject
 
-
-class ScheduledActivity : QkThemedActivity(), ScheduledView {
+class ScheduledGroupDetailActivity : QkThemedActivity(), ScheduledGroupDetailView {
 
     @Inject lateinit var scheduledMessageAdapter: ScheduledMessageAdapter
     @Inject lateinit var viewModelFactory: ViewModelProvider.Factory
 
-    override val composeIntent by lazy { compose.clicks() }
-    override val upgradeIntent by lazy { upgrade.clicks() }
-    override val createGroupIntent: Subject<Unit> = PublishSubject.create()
+    override val addMessageIntent by lazy { addMessage.clicks() }
     override val messagesSelectedIntent by lazy { scheduledMessageAdapter.selectionChanges }
     override val optionsItemIntent: Subject<Int> = PublishSubject.create()
     override val deleteScheduledMessages: Subject<List<Long>> = PublishSubject.create()
@@ -54,14 +52,14 @@ class ScheduledActivity : QkThemedActivity(), ScheduledView {
     override val backPressedIntent: Subject<Unit> = PublishSubject.create()
 
     private val viewModel by lazy {
-        ViewModelProviders.of(this, viewModelFactory)[ScheduledViewModel::class.java]
+        ViewModelProviders.of(this, viewModelFactory)[ScheduledGroupDetailViewModel::class.java]
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         AndroidInjection.inject(this)
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.scheduled_activity)
-        setTitle(R.string.scheduled_title)
+        setContentView(R.layout.scheduled_group_detail_activity)
+        setTitle(R.string.scheduled_group_detail_title)
         showBackButton(true)
         viewModel.bindView(this)
 
@@ -69,26 +67,30 @@ class ScheduledActivity : QkThemedActivity(), ScheduledView {
         messages.adapter = scheduledMessageAdapter
 
         colors.theme().let { theme ->
-            sampleMessage.setBackgroundTint(theme.theme)
-            sampleMessage.setTextColor(theme.textPrimary)
-            compose.setTint(theme.textPrimary)
-            compose.setBackgroundTint(theme.theme)
-            upgrade.setBackgroundTint(theme.theme)
-            upgradeIcon.setTint(theme.textPrimary)
-            upgradeLabel.setTextColor(theme.textPrimary)
+            addMessage.setTint(theme.textPrimary)
+            addMessage.setBackgroundTint(theme.theme)
         }
     }
 
-    override fun render(state: ScheduledState) {
+    override fun render(state: ScheduledGroupDetailState) {
+        // Update toolbar title with group name
+        toolbarTitle.text = state.groupName
+
+        // Show/hide group description
+        groupDescription.isVisible = state.groupDescription.isNotBlank()
+        groupDescription.text = state.groupDescription
+
+        // Update message list
         scheduledMessageAdapter.updateData(state.scheduledMessages)
 
-        setTitle(when {
-            (state.selectedMessages > 0) ->
-                getString(R.string.compose_title_selected, state.selectedMessages)
-            else -> getString(R.string.scheduled_title)
-        })
+        // Update toolbar title for selection mode
+        if (state.selectedMessages > 0) {
+            toolbarTitle.text = getString(R.string.compose_title_selected, state.selectedMessages)
+        } else {
+            toolbarTitle.text = state.groupName
+        }
 
-        // show/hide menu items
+        // Show/hide menu items
         toolbar.menu.findItem(R.id.select_all)?.isVisible =
             ((scheduledMessageAdapter.itemCount > 1) && (state.selectedMessages != 0))
         toolbar.menu.findItem(R.id.delete)?.isVisible =
@@ -99,10 +101,6 @@ class ScheduledActivity : QkThemedActivity(), ScheduledView {
             ((scheduledMessageAdapter.itemCount != 0) && (state.selectedMessages != 0))
         toolbar.menu.findItem(R.id.edit_message)?.isVisible =
             ((scheduledMessageAdapter.itemCount != 0) && (state.selectedMessages == 1))
-
-        // show compose button
-        compose.isVisible = state.upgraded && (state.conversationId == null)
-        upgrade.isVisible = !state.upgraded
     }
 
     override fun onBackPressed() = backPressedIntent.onNext(Unit)
@@ -144,14 +142,13 @@ class ScheduledActivity : QkThemedActivity(), ScheduledView {
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menuInflater.inflate(R.menu.scheduled_messages, menu)
+        // Hide the add_group menu item in group detail view
+        menu?.findItem(R.id.add_group)?.isVisible = false
         return super.onCreateOptionsMenu(menu)
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        when (item.itemId) {
-            R.id.add_group -> createGroupIntent.onNext(Unit)
-            else -> optionsItemIntent.onNext(item.itemId)
-        }
+        optionsItemIntent.onNext(item.itemId)
         return true
     }
 

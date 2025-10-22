@@ -39,6 +39,10 @@ import dev.octoshrimpy.quik.feature.qkreply.QkReplyActivity
 import dev.octoshrimpy.quik.feature.qkreply.QkReplyActivityModule
 import dev.octoshrimpy.quik.feature.scheduled.ScheduledActivity
 import dev.octoshrimpy.quik.feature.scheduled.ScheduledActivityModule
+import dev.octoshrimpy.quik.feature.scheduled.group.ScheduledGroupCreateActivity
+import dev.octoshrimpy.quik.feature.scheduled.group.ScheduledGroupCreateActivityModule
+import dev.octoshrimpy.quik.feature.scheduled.group.ScheduledGroupDetailActivity
+import dev.octoshrimpy.quik.feature.scheduled.group.ScheduledGroupDetailActivityModule
 import dev.octoshrimpy.quik.feature.settings.SettingsActivity
 import dev.octoshrimpy.quik.injection.scope.ActivityScope
 
@@ -84,6 +88,14 @@ abstract class ActivityBuilderModule {
     @ActivityScope
     @ContributesAndroidInjector(modules = [ScheduledActivityModule::class])
     abstract fun bindScheduledActivity(): ScheduledActivity
+
+    @ActivityScope
+    @ContributesAndroidInjector(modules = [ScheduledGroupCreateActivityModule::class])
+    abstract fun bindScheduledGroupCreateActivity(): ScheduledGroupCreateActivity
+
+    @ActivityScope
+    @ContributesAndroidInjector(modules = [ScheduledGroupDetailActivityModule::class])
+    abstract fun bindScheduledGroupDetailActivity(): ScheduledGroupDetailActivity
 
     @ActivityScope
     @ContributesAndroidInjector(modules = [])

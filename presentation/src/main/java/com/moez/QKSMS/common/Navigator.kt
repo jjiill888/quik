@@ -40,6 +40,8 @@ import dev.octoshrimpy.quik.feature.main.MainActivity
 import dev.octoshrimpy.quik.feature.notificationprefs.NotificationPrefsActivity
 import dev.octoshrimpy.quik.feature.plus.PlusActivity
 import dev.octoshrimpy.quik.feature.scheduled.ScheduledActivity
+import dev.octoshrimpy.quik.feature.scheduled.group.ScheduledGroupCreateActivity
+import dev.octoshrimpy.quik.feature.scheduled.group.ScheduledGroupDetailActivity
 import dev.octoshrimpy.quik.feature.settings.SettingsActivity
 import dev.octoshrimpy.quik.manager.BillingManager
 import dev.octoshrimpy.quik.manager.NotificationManager
@@ -169,6 +171,17 @@ class Navigator @Inject constructor(
     fun showScheduled(conversationId: Long?) {
         val intent = Intent(context, ScheduledActivity::class.java)
         conversationId?.let { intent.putExtra("conversationId", it) }
+        startActivity(intent)
+    }
+
+    fun showScheduledGroupCreate() {
+        val intent = Intent(context, ScheduledGroupCreateActivity::class.java)
+        startActivity(intent)
+    }
+
+    fun showScheduledGroupDetail(groupId: Long) {
+        val intent = Intent(context, ScheduledGroupDetailActivity::class.java)
+        intent.putExtra("groupId", groupId)
         startActivity(intent)
     }
 

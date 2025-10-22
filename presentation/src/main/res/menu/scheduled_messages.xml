@@ -21,6 +21,13 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
+        android:id="@+id/add_group"
+        android:icon="@android:drawable/ic_menu_add"
+        android:title="@string/scheduled_menu_add_group"
+        android:visible="true"
+        app:showAsAction="ifRoom" />
+
+    <item
         android:id="@+id/select_all"
         android:icon="?attr/actionModeSelectAllDrawable"
         android:title="@string/main_menu_select_all"

@@ -16,28 +16,21 @@
  * You should have received a copy of the GNU General Public License
  * along with QKSMS.  If not, see <http://www.gnu.org/licenses/>.
  */
-package dev.octoshrimpy.quik.feature.scheduled
+package dev.octoshrimpy.quik.feature.scheduled.group
 
 import dev.octoshrimpy.quik.common.base.QkView
 import io.reactivex.Observable
 
-interface ScheduledView : QkView<ScheduledState> {
+interface ScheduledGroupCreateView : QkView<ScheduledGroupCreateState> {
 
-    val composeIntent: Observable<*>
-    val upgradeIntent: Observable<*>
-    val createGroupIntent: Observable<*>
-    val messagesSelectedIntent: Observable<List<Long>>
-    val optionsItemIntent: Observable<Int>
-    val deleteScheduledMessages: Observable<List<Long>>
-    val sendScheduledMessages: Observable<List<Long>>
-    val editScheduledMessage: Observable<Long>
+    val nameChanges: Observable<CharSequence>
+    val descriptionChanges: Observable<CharSequence>
+    val createIntent: Observable<*>
     val backPressedIntent: Observable<Unit>
 
-    fun clearSelection()
-    fun toggleSelectAll()
-    fun showDeleteDialog(messages: List<Long>)
-    fun showSendNowDialog(messages: List<Long>)
-    fun showEditMessageDialog(message: Long)
+    fun setNameError(error: String?)
+    fun setDescriptionError(error: String?)
+    fun showGroupCreated(groupId: Long)
     fun finishActivity()
 
 }
