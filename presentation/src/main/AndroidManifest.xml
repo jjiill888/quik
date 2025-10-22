@@ -118,6 +118,7 @@
             android:theme="@style/AppThemeDialog"
             android:windowSoftInputMode="adjustResize" />
         <activity android:name=".feature.scheduled.ScheduledActivity" />
+        <activity android:name=".feature.scheduled.group.ScheduledGroupListActivity" />
         <activity android:name=".feature.scheduled.group.ScheduledGroupCreateActivity" />
         <activity android:name=".feature.scheduled.group.ScheduledGroupDetailActivity" />
         <activity android:name=".feature.backup.BackupActivity" />

@@ -99,15 +99,14 @@
                 android:layout_width="match_parent"
                 android:layout_height="24dp" />
 
-            <com.google.android.material.button.MaterialButton
+            <Button
                 android:id="@+id/createButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:enabled="false"
                 android:padding="16dp"
                 android:text="@string/scheduled_group_create_button"
-                android:textAllCaps="false"
-                app:cornerRadius="8dp" />
+                android:textAllCaps="false" />
 
         </LinearLayout>
 

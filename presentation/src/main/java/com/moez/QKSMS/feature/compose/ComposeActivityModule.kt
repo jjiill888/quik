@@ -98,6 +98,11 @@ class ComposeActivityModule {
         activity.intent.getStringExtra("mode") ?: ""
 
     @Provides
+    @Named("groupId")
+    fun provideGroupId(activity: ComposeActivity): Long =
+        activity.intent.getLongExtra("groupId", 0L)
+
+    @Provides
     @Named("subscriptionId")
     fun provideSubscriptionId(activity: ComposeActivity): Int =
         activity.intent.getIntExtra("subscriptionId", -1)

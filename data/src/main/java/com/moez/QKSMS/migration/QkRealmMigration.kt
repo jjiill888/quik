@@ -36,7 +36,7 @@ class QkRealmMigration @Inject constructor(
 ) : RealmMigration {
 
     companion object {
-        const val SchemaVersion: Long = 14
+        const val SchemaVersion: Long = 15
     }
 
     @SuppressLint("ApplySharedPref")
@@ -276,6 +276,25 @@ class QkRealmMigration @Inject constructor(
                 .addField("createdAt", Long::class.java, FieldAttribute.REQUIRED)
 
             realm.createObject("EmojiSyncNeeded")
+
+            version++
+        }
+
+        if (version == 14L) {
+            // Create ScheduledGroup table
+            realm.schema.create("ScheduledGroup")
+                .addField("id", Long::class.java, FieldAttribute.PRIMARY_KEY, FieldAttribute.REQUIRED)
+                .addField("name", String::class.java, FieldAttribute.REQUIRED)
+                .addField("description", String::class.java, FieldAttribute.REQUIRED)
+                .addField("createdAt", Long::class.java, FieldAttribute.REQUIRED)
+                .addField("updatedAt", Long::class.java, FieldAttribute.REQUIRED)
+
+            // Add groupId field to ScheduledMessage
+            realm.schema.get("ScheduledMessage")
+                ?.addField("groupId", Long::class.java, FieldAttribute.REQUIRED)
+                ?.transform { msg ->
+                    msg.setLong("groupId", 0L)
+                }
 
             version++
         }

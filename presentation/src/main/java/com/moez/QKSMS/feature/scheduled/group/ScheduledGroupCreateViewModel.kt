@@ -120,15 +120,14 @@ class ScheduledGroupCreateViewModel @Inject constructor(
     private fun createGroup(name: String, description: String, view: ScheduledGroupCreateView) {
         newState { copy(creating = true) }
 
-        disposables += createScheduledGroupInteractor.execute(
-            CreateScheduledGroup.Params(name, description)
-        )
+        disposables += createScheduledGroupInteractor
+            .buildObservable(CreateScheduledGroup.Params(name, description))
             .subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(
                 { groupId ->
                     newState { copy(creating = false) }
-                    view.showGroupCreated(groupId)
+                    view.showGroupCreated(groupId as Long)
                 },
                 { error ->
                     newState { copy(creating = false) }

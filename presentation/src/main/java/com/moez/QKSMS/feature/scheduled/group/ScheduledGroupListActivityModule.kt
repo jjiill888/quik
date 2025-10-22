@@ -16,23 +16,20 @@
  * You should have received a copy of the GNU General Public License
  * along with QKSMS.  If not, see <http://www.gnu.org/licenses/>.
  */
-package dev.octoshrimpy.quik.interactor
+package dev.octoshrimpy.quik.feature.scheduled.group
 
-import dev.octoshrimpy.quik.model.ScheduledGroup
-import dev.octoshrimpy.quik.repository.ScheduledGroupRepository
-import io.reactivex.Flowable
-import javax.inject.Inject
+import androidx.lifecycle.ViewModel
+import dagger.Module
+import dagger.Provides
+import dagger.multibindings.IntoMap
+import dev.octoshrimpy.quik.injection.ViewModelKey
+import javax.inject.Named
 
-class CreateScheduledGroup @Inject constructor(
-    private val scheduledGroupRepo: ScheduledGroupRepository
-) : Interactor<CreateScheduledGroup.Params>() {
+@Module
+class ScheduledGroupListActivityModule {
 
-    data class Params(val name: String, val description: String)
-
-    override fun buildObservable(params: Params): Flowable<*> {
-        return Flowable.just(params)
-            .map { scheduledGroupRepo.createScheduledGroup(it.name, it.description) }
-            .map { it.id }
-    }
-
+    @Provides
+    @IntoMap
+    @ViewModelKey(ScheduledGroupListViewModel::class)
+    fun provideScheduledGroupListViewModel(viewModel: ScheduledGroupListViewModel): ViewModel = viewModel
 }

@@ -125,6 +125,21 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/scheduledGroups"
+            style="@style/DrawerRow">
+
+            <ImageView
+                style="@style/DrawerIcon"
+                android:src="@drawable/ic_baseline_folder_24"
+                android:tint="?android:attr/textColorSecondary" />
+
+            <dev.octoshrimpy.quik.common.widget.QkTextView
+                style="@style/DrawerText"
+                android:text="@string/drawer_scheduled_groups" />
+
+        </LinearLayout>
+
+        <LinearLayout
             android:id="@+id/blocking"
             style="@style/DrawerRow">
 

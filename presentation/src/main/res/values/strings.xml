@@ -85,6 +85,7 @@
     <string name="drawer_inbox">Inbox</string>
     <string name="drawer_archived">Archived</string>
     <string name="drawer_scheduled">Scheduled</string>
+    <string name="drawer_scheduled_groups">Scheduled Groups</string>
     <string name="drawer_blocking">Blocking</string>
     <string name="drawer_more">More</string>
     <string name="drawer_settings">Settings</string>
@@ -263,6 +264,7 @@
     <string name="scheduled_group_name_required">Group name is required</string>
     <string name="scheduled_group_name_too_long">Group name must be less than %d characters</string>
     <string name="scheduled_group_description_too_long">Description must be less than %d characters</string>
+    <string name="scheduled_groups_title">Scheduled Groups</string>
     <string name="scheduled_group_detail_title">Task Group</string>
     <string name="scheduled_group_detail_empty">No scheduled messages in this group yet</string>
     <string name="scheduled_group_add_message">Add Message</string>

@@ -16,23 +16,16 @@
  * You should have received a copy of the GNU General Public License
  * along with QKSMS.  If not, see <http://www.gnu.org/licenses/>.
  */
-package dev.octoshrimpy.quik.interactor
+package dev.octoshrimpy.quik.feature.scheduled.group
 
-import dev.octoshrimpy.quik.model.ScheduledGroup
-import dev.octoshrimpy.quik.repository.ScheduledGroupRepository
-import io.reactivex.Flowable
-import javax.inject.Inject
+import dev.octoshrimpy.quik.common.base.QkView
+import io.reactivex.Observable
 
-class CreateScheduledGroup @Inject constructor(
-    private val scheduledGroupRepo: ScheduledGroupRepository
-) : Interactor<CreateScheduledGroup.Params>() {
+interface ScheduledGroupListView : QkView<ScheduledGroupListState> {
 
-    data class Params(val name: String, val description: String)
+    val groupClicks: Observable<Long>
+    val createGroupIntent: Observable<*>
+    val backPressedIntent: Observable<Unit>
 
-    override fun buildObservable(params: Params): Flowable<*> {
-        return Flowable.just(params)
-            .map { scheduledGroupRepo.createScheduledGroup(it.name, it.description) }
-            .map { it.id }
-    }
-
+    fun finishActivity()
 }

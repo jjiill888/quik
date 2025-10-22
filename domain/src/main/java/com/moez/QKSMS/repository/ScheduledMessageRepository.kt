@@ -35,7 +35,8 @@ interface ScheduledMessageRepository {
         sendAsGroup: Boolean,
         body: String,
         attachments: List<String>,
-        conversationId: Long
+        conversationId: Long,
+        groupId: Long = 0
     ): ScheduledMessage
 
     /**

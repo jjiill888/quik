@@ -101,6 +101,7 @@ class ComposeViewModel @Inject constructor(
     @Named("text") private val sharedText: String,
     @Named("attachments") val sharedAttachments: List<Attachment>,
     @Named("mode") private val mode: String,
+    @Named("groupId") private val groupId: Long,
     @Named("subscriptionId") val sharedSubscriptionId: Int,
     @Named("sendAsGroup") val sharedSendAsGroup: Boolean?,
     @Named("scheduleDateTime") val sharedScheduledDateTime: Long,
@@ -1145,7 +1146,8 @@ class ComposeViewModel @Inject constructor(
                             sendAsGroup,
                             body.toString(),
                             state.attachments.map { it.uri.toString() },
-                            conversationId
+                            conversationId,
+                            groupId
                         )
                     ).also {
                         newState { copy(scheduled = 0, hasScheduledMessages = true ) }

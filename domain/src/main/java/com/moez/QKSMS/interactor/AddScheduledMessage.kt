@@ -42,7 +42,8 @@ class AddScheduledMessage @Inject constructor(
         val sendAsGroup: Boolean,
         val body: String,
         val attachments: List<String>,
-        val conversationId: Long
+        val conversationId: Long,
+        val groupId: Long = 0
     )
 
     @SuppressLint("Range")
@@ -57,7 +58,8 @@ class AddScheduledMessage @Inject constructor(
                     it.sendAsGroup,
                     it.body,
                     it.attachments,
-                    it.conversationId
+                    it.conversationId,
+                    it.groupId
                 )
             }
             .map { scheduledMessageDb ->

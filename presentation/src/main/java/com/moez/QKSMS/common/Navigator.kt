@@ -40,6 +40,7 @@ import dev.octoshrimpy.quik.feature.main.MainActivity
 import dev.octoshrimpy.quik.feature.notificationprefs.NotificationPrefsActivity
 import dev.octoshrimpy.quik.feature.plus.PlusActivity
 import dev.octoshrimpy.quik.feature.scheduled.ScheduledActivity
+import dev.octoshrimpy.quik.feature.scheduled.group.ScheduledGroupListActivity
 import dev.octoshrimpy.quik.feature.scheduled.group.ScheduledGroupCreateActivity
 import dev.octoshrimpy.quik.feature.scheduled.group.ScheduledGroupDetailActivity
 import dev.octoshrimpy.quik.feature.settings.SettingsActivity
@@ -100,10 +101,11 @@ class Navigator @Inject constructor(
         startActivity(intent)
     }
 
-    fun showCompose(body: String? = null, attachments: List<Uri>? = null, mode: String? = null) {
+    fun showCompose(body: String? = null, attachments: List<Uri>? = null, mode: String? = null, groupId: Long = 0) {
         val intent = Intent(context, ComposeActivity::class.java)
         intent.putExtra(Intent.EXTRA_TEXT, body)
         intent.putExtra("mode", mode)
+        intent.putExtra("groupId", groupId)
 
         attachments
             ?.takeIf { it.isNotEmpty() }
@@ -171,6 +173,11 @@ class Navigator @Inject constructor(
     fun showScheduled(conversationId: Long?) {
         val intent = Intent(context, ScheduledActivity::class.java)
         conversationId?.let { intent.putExtra("conversationId", it) }
+        startActivity(intent)
+    }
+
+    fun showScheduledGroups() {
+        val intent = Intent(context, ScheduledGroupListActivity::class.java)
         startActivity(intent)
     }
 

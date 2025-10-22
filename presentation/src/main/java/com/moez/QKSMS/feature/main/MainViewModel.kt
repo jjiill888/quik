@@ -330,6 +330,7 @@ class MainViewModel @Inject constructor(
                         }
                         NavItem.BACKUP -> navigator.showBackup()
                         NavItem.SCHEDULED -> navigator.showScheduled(null)
+                        NavItem.SCHEDULED_GROUPS -> navigator.showScheduledGroups()
                         NavItem.BLOCKING -> navigator.showBlockedConversations()
                         NavItem.SETTINGS -> navigator.showSettings()
 //                        NavItem.PLUS -> navigator.showQksmsPlusActivity("main_menu")

@@ -171,8 +171,7 @@ class ScheduledGroupDetailViewModel @Inject constructor(
         view.addMessageIntent
             .autoDisposable(view.scope())
             .subscribe {
-                // TODO: Navigate to compose with groupId parameter
-                navigator.showCompose(mode = "scheduling")
+                navigator.showCompose(mode = "scheduling", groupId = groupId)
                 view.clearSelection()
             }
     }
