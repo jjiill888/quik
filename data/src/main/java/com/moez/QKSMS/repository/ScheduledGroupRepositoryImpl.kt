@@ -4,6 +4,7 @@ import dev.octoshrimpy.quik.model.ScheduledGroup
 import dev.octoshrimpy.quik.model.ScheduledMessage
 import io.realm.Realm
 import io.realm.RealmResults
+import io.realm.Sort
 import javax.inject.Inject
 
 class ScheduledGroupRepositoryImpl @Inject constructor() : ScheduledGroupRepository {
@@ -49,8 +50,14 @@ class ScheduledGroupRepositoryImpl @Inject constructor() : ScheduledGroupReposit
         return Realm.getDefaultInstance()
             .where(ScheduledMessage::class.java)
             .equalTo("groupId", groupId)
-            .sort("completed")  // false (incomplete) first, then true (completed)
-            .sort("id", io.realm.Sort.DESCENDING)  // newest first (higher id = newer)
+            .sort(
+                arrayOf("completed", "completedAt", "id"),
+                arrayOf(
+                    Sort.ASCENDING,  // incomplete messages (false) first
+                    Sort.DESCENDING, // most recently completed messages first
+                    Sort.DESCENDING  // newest creations first for incomplete items
+                )
+            )
             .findAll()
     }
 

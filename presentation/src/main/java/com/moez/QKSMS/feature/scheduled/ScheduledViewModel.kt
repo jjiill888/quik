@@ -136,6 +136,19 @@ class ScheduledViewModel @Inject constructor(
                 view.clearSelection()
             }
 
+        // Handle completed message click to view conversation with search query
+        (view as? ScheduledActivity)?.scheduledMessageAdapter?.completedClicks
+            ?.autoDisposable(view.scope())
+            ?.subscribe { messageId ->
+                scheduledMessageRepo.getScheduledMessage(messageId)?.let { message ->
+                    if (message.conversationId > 0 && message.completed) {
+                        // Use the message body as search query to highlight it in the conversation
+                        val searchQuery = message.body.take(50)  // Use first 50 chars as search
+                        navigator.showConversation(message.conversationId, searchQuery)
+                    }
+                }
+            }
+
         // navigate back or unselect
         view.optionsItemIntent
             .filter { it == android.R.id.home }

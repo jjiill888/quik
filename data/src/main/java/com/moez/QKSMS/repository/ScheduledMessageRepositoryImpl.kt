@@ -25,6 +25,7 @@ class ScheduledMessageRepositoryImpl @Inject constructor() : ScheduledMessageRep
         conversationId: Long,
         groupId: Long
     ): ScheduledMessage {
+        Timber.d("ScheduledMessageRepo: saveScheduledMessage called with groupId=$groupId")
         Realm.getDefaultInstance().use { realm ->
             val id = (realm
                 .where(ScheduledMessage::class.java)
@@ -38,8 +39,10 @@ class ScheduledMessageRepositoryImpl @Inject constructor() : ScheduledMessageRep
             val message = ScheduledMessage(id, date, subId, recipientsRealmList, sendAsGroup, body,
                 attachmentsRealmList, conversationId, groupId)
 
+            Timber.d("ScheduledMessageRepo: Created message id=$id, groupId=$groupId")
             realm.executeTransaction { realm.insertOrUpdate(message) }
 
+            Timber.d("ScheduledMessageRepo: Message saved id=$id, groupId=${message.groupId}")
             return message
         }
     }
@@ -53,7 +56,14 @@ class ScheduledMessageRepositoryImpl @Inject constructor() : ScheduledMessageRep
     override fun getScheduledMessages(): RealmResults<ScheduledMessage> {
         return Realm.getDefaultInstance()
             .where(ScheduledMessage::class.java)
-            .sort("date")
+            .sort(
+                arrayOf("completed", "date", "completedAt"),
+                arrayOf(
+                    io.realm.Sort.ASCENDING,  // incomplete messages (false) first
+                    io.realm.Sort.ASCENDING,  // upcoming scheduled messages first for incomplete items
+                    io.realm.Sort.DESCENDING  // most recently completed messages first
+                )
+            )
             .findAll()
     }
 
@@ -69,6 +79,14 @@ class ScheduledMessageRepositoryImpl @Inject constructor() : ScheduledMessageRep
         return Realm.getDefaultInstance()
             .where(ScheduledMessage::class.java)
             .equalTo("conversationId", conversationId)
+            .sort(
+                arrayOf("completed", "date", "completedAt"),
+                arrayOf(
+                    io.realm.Sort.ASCENDING,  // incomplete messages (false) first
+                    io.realm.Sort.ASCENDING,  // upcoming scheduled messages first for incomplete items
+                    io.realm.Sort.DESCENDING  // most recently completed messages first
+                )
+            )
             .findAllAsync()
     }
 
@@ -108,17 +126,23 @@ class ScheduledMessageRepositoryImpl @Inject constructor() : ScheduledMessageRep
     }
 
     override fun markScheduledMessageComplete(id: Long) {
+        Timber.d("ScheduledMessageRepo: markScheduledMessageComplete called for id=$id")
         Realm.getDefaultInstance().use { realm ->
             realm.executeTransaction {
                 val message = realm.where(ScheduledMessage::class.java)
                     .equalTo("id", id)
                     .findFirst()
 
-                message?.let {
-                    it.completed = true
-                    it.completedAt = System.currentTimeMillis()
+                if (message != null) {
+                    Timber.d("ScheduledMessageRepo: Found message id=$id, groupId=${message.groupId}, setting completed=true")
+                    message.completed = true
+                    message.completedAt = System.currentTimeMillis()
+                    Timber.d("ScheduledMessageRepo: Message marked - completed=${message.completed}, completedAt=${message.completedAt}")
+                } else {
+                    Timber.e("ScheduledMessageRepo: Message id=$id NOT FOUND!")
                 }
             }
         }
+        Timber.d("ScheduledMessageRepo: markScheduledMessageComplete finished for id=$id")
     }
 }

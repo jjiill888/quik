@@ -27,6 +27,7 @@ import dev.octoshrimpy.quik.repository.ScheduledMessageRepository
 import io.reactivex.Flowable
 import io.reactivex.rxkotlin.toFlowable
 import io.realm.RealmList
+import timber.log.Timber
 import javax.inject.Inject
 
 class SendScheduledMessage @Inject constructor(
@@ -62,11 +63,19 @@ class SendScheduledMessage @Inject constructor(
             .doOnNext {
                 // Mark message as completed or delete it (only executes once per scheduled message)
                 val message = scheduledMessageRepo.getScheduledMessage(params)
+                Timber.d("SendScheduledMessage: Processing message id=$params, groupId=${message?.groupId}, completed=${message?.completed}")
+
                 if (message != null && message.groupId != 0L) {
                     // If message is part of a group, mark it as completed
+                    Timber.d("SendScheduledMessage: Marking message as completed (groupId=${message.groupId})")
                     scheduledMessageRepo.markScheduledMessageComplete(params)
+
+                    // Verify it was marked
+                    val updatedMessage = scheduledMessageRepo.getScheduledMessage(params)
+                    Timber.d("SendScheduledMessage: After marking - completed=${updatedMessage?.completed}, completedAt=${updatedMessage?.completedAt}")
                 } else {
                     // If message is not part of a group, delete it (old behavior)
+                    Timber.d("SendScheduledMessage: Deleting message (groupId=${message?.groupId})")
                     deleteScheduledMessagesInteractor.execute(listOf(params))
                 }
             }
