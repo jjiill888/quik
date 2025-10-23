@@ -18,7 +18,12 @@
  */
 package dev.octoshrimpy.quik.feature.scheduled.group
 
+import android.database.Cursor
+import android.net.Uri
 import android.os.Bundle
+import android.provider.OpenableColumns
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.view.isVisible
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelProviders
 import com.jakewharton.rxbinding2.view.clicks
@@ -27,6 +32,7 @@ import dagger.android.AndroidInjection
 import dev.octoshrimpy.quik.R
 import dev.octoshrimpy.quik.common.Navigator
 import dev.octoshrimpy.quik.common.base.QkThemedActivity
+import io.reactivex.Observable
 import io.reactivex.subjects.PublishSubject
 import io.reactivex.subjects.Subject
 import kotlinx.android.synthetic.main.scheduled_group_create_activity.*
@@ -41,6 +47,15 @@ class ScheduledGroupCreateActivity : QkThemedActivity(), ScheduledGroupCreateVie
     override val descriptionChanges by lazy { descriptionInput.textChanges() }
     override val createIntent by lazy { createButton.clicks() }
     override val backPressedIntent: Subject<Unit> = PublishSubject.create()
+
+    private val csvImportSelectionsSubject: Subject<CsvImportSelection> = PublishSubject.create()
+    override val csvImportSelections: Observable<CsvImportSelection> = csvImportSelectionsSubject.hide()
+
+    private val openCsvLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        if (uri != null) {
+            csvImportSelectionsSubject.onNext(CsvImportSelection(uri, resolveDisplayName(uri)))
+        }
+    }
 
     private val viewModel by lazy {
         ViewModelProviders.of(this, viewModelFactory)[ScheduledGroupCreateViewModel::class.java]
@@ -58,12 +73,37 @@ class ScheduledGroupCreateActivity : QkThemedActivity(), ScheduledGroupCreateVie
             createButton.setBackgroundColor(theme.theme)
             createButton.setTextColor(theme.textPrimary)
         }
+
+        importButton.setOnClickListener {
+            openCsvLauncher.launch(
+                arrayOf(
+                    "text/csv",
+                    "text/comma-separated-values",
+                    "text/plain",
+                    "application/csv",
+                    "application/vnd.ms-excel"
+                )
+            )
+        }
     }
 
     override fun render(state: ScheduledGroupCreateState) {
         nameInputLayout.error = state.nameError
         descriptionInputLayout.error = state.descriptionError
         createButton.isEnabled = state.canCreate && !state.creating
+        importButton.isEnabled = !state.creating && !state.importing
+
+        importStatus.text = when {
+            state.importing -> getString(R.string.scheduled_group_import_status_importing)
+            state.importRowCount > 0 -> {
+                val fileName = state.importFileName ?: getString(R.string.scheduled_group_import_unknown_file)
+                getString(R.string.scheduled_group_import_status_success, fileName, state.importRowCount)
+            }
+            else -> getString(R.string.scheduled_group_import_status_idle)
+        }
+
+        importError.isVisible = !state.importError.isNullOrBlank()
+        importError.text = state.importError.orEmpty()
 
         // Show loading state
         createButton.text = if (state.creating) {
@@ -92,5 +132,26 @@ class ScheduledGroupCreateActivity : QkThemedActivity(), ScheduledGroupCreateVie
 
     override fun finishActivity() {
         finish()
+    }
+
+    private fun resolveDisplayName(uri: Uri): String? {
+        var cursor: Cursor? = null
+        return try {
+            cursor = contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+            if (cursor != null && cursor.moveToFirst()) {
+                val columnIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (columnIndex >= 0) {
+                    cursor.getString(columnIndex)
+                } else {
+                    null
+                }
+            } else {
+                null
+            }
+        } catch (_: Exception) {
+            null
+        } finally {
+            cursor?.close()
+        } ?: uri.lastPathSegment
     }
 }

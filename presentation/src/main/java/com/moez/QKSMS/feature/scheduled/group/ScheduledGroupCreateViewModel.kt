@@ -23,16 +23,19 @@ import com.uber.autodispose.android.lifecycle.scope
 import com.uber.autodispose.autoDisposable
 import dev.octoshrimpy.quik.R
 import dev.octoshrimpy.quik.common.base.QkViewModel
-import dev.octoshrimpy.quik.interactor.CreateScheduledGroup
+import dev.octoshrimpy.quik.interactor.CreateScheduledGroupWithMessages
+import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.rxkotlin.plusAssign
 import io.reactivex.rxkotlin.withLatestFrom
 import io.reactivex.schedulers.Schedulers
+import timber.log.Timber
 import javax.inject.Inject
 
 class ScheduledGroupCreateViewModel @Inject constructor(
     private val context: Context,
-    private val createScheduledGroupInteractor: CreateScheduledGroup
+    private val csvImportParser: CsvImportParser,
+    private val createScheduledGroupWithMessages: CreateScheduledGroupWithMessages
 ) : QkViewModel<ScheduledGroupCreateView, ScheduledGroupCreateState>(
     ScheduledGroupCreateState()
 ) {
@@ -42,55 +45,153 @@ class ScheduledGroupCreateViewModel @Inject constructor(
         private const val MAX_DESCRIPTION_LENGTH = 500
     }
 
+    private var importedRows: List<CsvImportParser.Row> = emptyList()
+
     override fun bindView(view: ScheduledGroupCreateView) {
         super.bindView(view)
 
-        // Update state when name changes
         view.nameChanges
             .autoDisposable(view.scope())
             .subscribe { name ->
+                val nameString = name.toString()
                 newState {
                     copy(
-                        name = name.toString(),
-                        nameError = validateName(name.toString())
+                        name = nameString,
+                        nameError = validateName(nameString)
                     )
                 }
             }
 
-        // Update state when description changes
         view.descriptionChanges
             .autoDisposable(view.scope())
             .subscribe { description ->
+                val descriptionString = description.toString()
                 newState {
                     copy(
-                        description = description.toString(),
-                        descriptionError = validateDescription(description.toString())
+                        description = descriptionString,
+                        descriptionError = validateDescription(descriptionString)
                     )
                 }
             }
 
-        // Update canCreate flag whenever state changes
         disposables += state
-            .subscribe { state ->
-                val canCreate = state.name.isNotBlank() &&
-                        state.nameError == null &&
-                        state.descriptionError == null &&
-                        !state.creating
-                if (state.canCreate != canCreate) {
+            .subscribe { current ->
+                val canCreate = current.name.isNotBlank() &&
+                        current.nameError == null &&
+                        current.descriptionError == null &&
+                        !current.creating &&
+                        !current.importing &&
+                        current.importRowCount > 0 &&
+                        current.importError.isNullOrBlank()
+                if (current.canCreate != canCreate) {
                     newState { copy(canCreate = canCreate) }
                 }
             }
 
-        // Handle create button click
-        view.createIntent
-            .withLatestFrom(state) { _, state -> state }
-            .filter { it.canCreate }
+        view.csvImportSelections
+            .doOnNext { selection ->
+                importedRows = emptyList()
+                newState {
+                    copy(
+                        importing = true,
+                        importError = null,
+                        importFileName = selection.displayName ?: selection.uri.lastPathSegment,
+                        importRowCount = 0
+                    )
+                }
+            }
+            .observeOn(Schedulers.io())
+            .flatMap { selection ->
+                Observable.fromCallable {
+                    val result = context.contentResolver.openInputStream(selection.uri)?.use { input ->
+                        csvImportParser.parse(input)
+                    } ?: throw IllegalStateException("Unable to open CSV input stream")
+
+                    ImportComputation(selection, result, null)
+                }.onErrorReturn { error ->
+                    ImportComputation(selection, null, error)
+                }
+            }
+            .observeOn(AndroidSchedulers.mainThread())
             .autoDisposable(view.scope())
-            .subscribe { state ->
-                createGroup(state.name, state.description, view)
+            .subscribe { computation ->
+                val selection = computation.selection
+                val displayName = selection.displayName ?: selection.uri.lastPathSegment
+
+                if (computation.error != null) {
+                    Timber.w(computation.error, "Failed to import CSV file")
+                    importedRows = emptyList()
+                    newState {
+                        copy(
+                            importing = false,
+                            importError = context.getString(R.string.scheduled_group_import_error_open_failed),
+                            importRowCount = 0,
+                            importFileName = displayName
+                        )
+                    }
+                    return@subscribe
+                }
+
+                val result = computation.result
+                if (result == null) {
+                    importedRows = emptyList()
+                    newState {
+                        copy(
+                            importing = false,
+                            importError = context.getString(R.string.scheduled_group_import_error_open_failed),
+                            importRowCount = 0,
+                            importFileName = displayName
+                        )
+                    }
+                    return@subscribe
+                }
+
+                if (result.errors.isNotEmpty()) {
+                    importedRows = emptyList()
+                    val errorMessage = result.errors.joinToString("\n") { formatRowError(it) }
+                    newState {
+                        copy(
+                            importing = false,
+                            importError = errorMessage,
+                            importRowCount = 0,
+                            importFileName = displayName
+                        )
+                    }
+                    return@subscribe
+                }
+
+                if (result.rows.isEmpty()) {
+                    importedRows = emptyList()
+                    newState {
+                        copy(
+                            importing = false,
+                            importError = context.getString(R.string.scheduled_group_import_error_no_rows),
+                            importRowCount = 0,
+                            importFileName = displayName
+                        )
+                    }
+                    return@subscribe
+                }
+
+                importedRows = result.rows
+                newState {
+                    copy(
+                        importing = false,
+                        importError = null,
+                        importRowCount = result.rows.size,
+                        importFileName = displayName
+                    )
+                }
             }
 
-        // Handle back press
+        view.createIntent
+            .withLatestFrom(state) { _, currentState -> currentState }
+            .filter { it.canCreate }
+            .autoDisposable(view.scope())
+            .subscribe { currentState ->
+                createGroup(currentState.name, currentState.description, view)
+            }
+
         view.backPressedIntent
             .autoDisposable(view.scope())
             .subscribe { view.finishActivity() }
@@ -118,10 +219,28 @@ class ScheduledGroupCreateViewModel @Inject constructor(
     }
 
     private fun createGroup(name: String, description: String, view: ScheduledGroupCreateView) {
-        newState { copy(creating = true) }
+        if (importedRows.isEmpty()) {
+            newState { copy(importError = context.getString(R.string.scheduled_group_import_required)) }
+            return
+        }
 
-        disposables += createScheduledGroupInteractor
-            .buildObservable(CreateScheduledGroup.Params(name, description))
+        newState { copy(creating = true, importError = null) }
+
+        val params = CreateScheduledGroupWithMessages.Params(
+            name = name,
+            description = description,
+            messages = importedRows.map { row ->
+                CreateScheduledGroupWithMessages.Message(
+                    scheduledAtMillis = row.scheduledAtMillis,
+                    phoneNumber = row.phoneNumber,
+                    body = row.body,
+                    name = row.name.takeIf { it.isNotBlank() }
+                )
+            }
+        )
+
+        disposables += createScheduledGroupWithMessages
+            .buildObservable(params)
             .subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(
@@ -130,10 +249,42 @@ class ScheduledGroupCreateViewModel @Inject constructor(
                     view.showGroupCreated(groupId as Long)
                 },
                 { error ->
-                    newState { copy(creating = false) }
-                    // Handle error - for now just log it
-                    error.printStackTrace()
+                    Timber.e(error, "Failed to create scheduled group with messages")
+                    newState {
+                        copy(
+                            creating = false,
+                            importError = error.localizedMessage
+                                ?: context.getString(R.string.scheduled_group_import_error_open_failed)
+                        )
+                    }
                 }
             )
     }
+
+    private fun formatRowError(error: CsvImportParser.RowError): String {
+        return when (val kind = error.kind) {
+            CsvImportParser.RowError.Kind.MissingPhoneNumber ->
+                context.getString(R.string.scheduled_group_import_error_missing_phone, error.lineNumber)
+
+            CsvImportParser.RowError.Kind.MissingTime ->
+                context.getString(R.string.scheduled_group_import_error_missing_time, error.lineNumber)
+
+            is CsvImportParser.RowError.Kind.InvalidTime ->
+                context.getString(
+                    R.string.scheduled_group_import_error_invalid_time,
+                    error.lineNumber,
+                    kind.rawValue,
+                    CsvImportParser.SUPPORTED_FORMATS.joinToString(", ")
+                )
+
+            CsvImportParser.RowError.Kind.MissingBody ->
+                context.getString(R.string.scheduled_group_import_error_missing_body, error.lineNumber)
+        }
+    }
+
+    private data class ImportComputation(
+        val selection: CsvImportSelection,
+        val result: CsvImportParser.Result?,
+        val error: Throwable?
+    )
 }

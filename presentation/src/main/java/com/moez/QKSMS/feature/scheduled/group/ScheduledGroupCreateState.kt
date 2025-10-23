@@ -24,5 +24,9 @@ data class ScheduledGroupCreateState(
     val nameError: String? = null,
     val descriptionError: String? = null,
     val canCreate: Boolean = false,
-    val creating: Boolean = false
+    val creating: Boolean = false,
+    val importFileName: String? = null,
+    val importRowCount: Int = 0,
+    val importError: String? = null,
+    val importing: Boolean = false
 )

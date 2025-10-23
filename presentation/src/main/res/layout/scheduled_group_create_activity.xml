@@ -100,6 +100,37 @@
                 android:layout_height="24dp" />
 
             <Button
+                android:id="@+id/importButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="16dp"
+                android:text="@string/scheduled_group_import_button"
+                android:textAllCaps="false" />
+
+            <dev.octoshrimpy.quik.common.widget.QkTextView
+                android:id="@+id/importStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textSize="14sp"
+                tools:text="Imported 10 rows from sample.csv" />
+
+            <dev.octoshrimpy.quik.common.widget.QkTextView
+                android:id="@+id/importError"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textColor="#D32F2F"
+                android:textSize="14sp"
+                android:visibility="gone"
+                tools:text="Row 2: Phone number is required."
+                tools:visibility="visible" />
+
+            <Space
+                android:layout_width="match_parent"
+                android:layout_height="24dp" />
+
+            <Button
                 android:id="@+id/createButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

@@ -18,8 +18,11 @@
  */
 package dev.octoshrimpy.quik.feature.scheduled.group
 
+import android.net.Uri
 import dev.octoshrimpy.quik.common.base.QkView
 import io.reactivex.Observable
+
+data class CsvImportSelection(val uri: Uri, val displayName: String?)
 
 interface ScheduledGroupCreateView : QkView<ScheduledGroupCreateState> {
 
@@ -27,6 +30,7 @@ interface ScheduledGroupCreateView : QkView<ScheduledGroupCreateState> {
     val descriptionChanges: Observable<CharSequence>
     val createIntent: Observable<*>
     val backPressedIntent: Observable<Unit>
+    val csvImportSelections: Observable<CsvImportSelection>
 
     fun setNameError(error: String?)
     fun setDescriptionError(error: String?)
