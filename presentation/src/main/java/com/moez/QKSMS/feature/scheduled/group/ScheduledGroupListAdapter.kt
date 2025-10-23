@@ -26,9 +26,13 @@ import dev.octoshrimpy.quik.R
 import dev.octoshrimpy.quik.common.base.QkRealmAdapter
 import dev.octoshrimpy.quik.common.base.QkViewHolder
 import dev.octoshrimpy.quik.model.ScheduledGroup
+import dev.octoshrimpy.quik.model.ScheduledMessage
 import dev.octoshrimpy.quik.repository.ScheduledMessageRepository
 import io.reactivex.subjects.PublishSubject
 import io.reactivex.subjects.Subject
+import io.realm.OrderedRealmCollection
+import io.realm.OrderedRealmCollectionChangeListener
+import io.realm.RealmResults
 import kotlinx.android.synthetic.main.scheduled_group_list_item.view.*
 import javax.inject.Inject
 
@@ -41,6 +45,12 @@ class ScheduledGroupListAdapter @Inject constructor(
     // Cache for sorted group indices and message counts
     private var sortedIndices: List<Int> = emptyList()
     private val groupStats = mutableMapOf<Long, GroupStats>()  // groupId -> stats
+    private var scheduledMessages: RealmResults<ScheduledMessage>? = null
+    private val scheduledMessagesListener =
+        OrderedRealmCollectionChangeListener<RealmResults<ScheduledMessage>> { _, _ ->
+            recalculateGroupStats()
+            notifyDataSetChanged()
+        }
 
     data class GroupStats(
         val totalCount: Int,
@@ -49,28 +59,44 @@ class ScheduledGroupListAdapter @Inject constructor(
         val isAllCompleted: Boolean
     )
 
-    private fun updateSortedIndices() {
-        val groups = data ?: return
+    private data class MutableGroupStats(var total: Int = 0, var completed: Int = 0)
+
+    private fun recalculateGroupStats() {
+        val groups = data
+
+        if (groups == null || !groups.isLoaded) {
+            sortedIndices = emptyList()
+            groupStats.clear()
+            return
+        }
+
+        val statsAccumulator = mutableMapOf<Long, MutableGroupStats>()
+
+        val messages = scheduledMessages
+        if (messages != null && messages.isValid) {
+            messages.forEach { message ->
+                val groupId = message.groupId
+                if (groupId != 0L) {
+                    val stats = statsAccumulator.getOrPut(groupId) { MutableGroupStats() }
+                    stats.total += 1
+                    if (message.completed) {
+                        stats.completed += 1
+                    }
+                }
+            }
+        }
+
         groupStats.clear()
 
-        // Create list of (index, group, isCompleted) tuples with cached stats
-        val indexedGroups = groups.indices.map { index ->
-            val group = groups[index]!!
+        val indexedGroups = groups.indices.mapNotNull { index ->
+            val group = groups[index] ?: return@mapNotNull null
+            val counts = statsAccumulator[group.id] ?: MutableGroupStats()
+            val total = counts.total
+            val completed = counts.completed
+            val pending = total - completed
+            val isCompleted = total > 0 && pending == 0
 
-            // Query messages once and create snapshot to avoid memory issues
-            val messages = scheduledMessageRepo.getScheduledMessages()
-                .where()
-                .equalTo("groupId", group.id)
-                .findAll()
-                .createSnapshot()
-
-            val totalCount = messages.size
-            val completedCount = messages.count { it.completed }
-            val pendingCount = totalCount - completedCount
-            val isCompleted = totalCount > 0 && completedCount == totalCount
-
-            // Cache stats for this group
-            groupStats[group.id] = GroupStats(totalCount, completedCount, pendingCount, isCompleted)
+            groupStats[group.id] = GroupStats(total, completed, pending, isCompleted)
 
             Triple(index, group, isCompleted)
         }
@@ -82,9 +108,10 @@ class ScheduledGroupListAdapter @Inject constructor(
         ).map { it.first }
     }
 
-    override fun updateData(data: io.realm.OrderedRealmCollection<ScheduledGroup>?) {
+    override fun updateData(data: OrderedRealmCollection<ScheduledGroup>?) {
         super.updateData(data)
-        updateSortedIndices()
+        recalculateGroupStats()
+        notifyDataSetChanged()
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): QkViewHolder {
@@ -170,5 +197,21 @@ class ScheduledGroupListAdapter @Inject constructor(
     override fun getItemId(position: Int): Long {
         val actualPosition = sortedIndices.getOrNull(position) ?: position
         return data?.get(actualPosition)?.id ?: -1
+    }
+
+    override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
+        super.onAttachedToRecyclerView(recyclerView)
+        // Initialize scheduledMessages when attached to RecyclerView
+        if (scheduledMessages == null) {
+            scheduledMessages = scheduledMessageRepo.getScheduledMessages()
+        }
+        scheduledMessages?.addChangeListener(scheduledMessagesListener)
+        recalculateGroupStats()
+        notifyDataSetChanged()
+    }
+
+    override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
+        scheduledMessages?.removeChangeListener(scheduledMessagesListener)
+        super.onDetachedFromRecyclerView(recyclerView)
     }
 }
