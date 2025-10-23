@@ -22,5 +22,6 @@ import dev.octoshrimpy.quik.model.ScheduledGroup
 import io.realm.RealmResults
 
 data class ScheduledGroupListState(
-    val groups: RealmResults<ScheduledGroup>? = null
+    val groups: RealmResults<ScheduledGroup>? = null,
+    val selectedGroups: Int = 0
 )

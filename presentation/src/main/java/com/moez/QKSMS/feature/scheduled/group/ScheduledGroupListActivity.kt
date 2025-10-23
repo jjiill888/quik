@@ -19,6 +19,9 @@
 package dev.octoshrimpy.quik.feature.scheduled.group
 
 import android.os.Bundle
+import android.view.Menu
+import android.view.MenuItem
+import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelProviders
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -30,6 +33,7 @@ import dev.octoshrimpy.quik.common.util.extensions.setBackgroundTint
 import dev.octoshrimpy.quik.common.util.extensions.setTint
 import io.reactivex.subjects.PublishSubject
 import io.reactivex.subjects.Subject
+import kotlinx.android.synthetic.main.main_activity.toolbar
 import kotlinx.android.synthetic.main.scheduled_group_list_activity.*
 import javax.inject.Inject
 
@@ -39,7 +43,10 @@ class ScheduledGroupListActivity : QkThemedActivity(), ScheduledGroupListView {
     @Inject lateinit var viewModelFactory: ViewModelProvider.Factory
 
     override val groupClicks by lazy { adapter.groupClicks }
+    override val groupsSelectedIntent by lazy { adapter.selectionChanges }
     override val createGroupIntent by lazy { fab.clicks() }
+    override val optionsItemIntent: Subject<Int> = PublishSubject.create()
+    override val deleteScheduledGroups: Subject<List<Long>> = PublishSubject.create()
     override val backPressedIntent: Subject<Unit> = PublishSubject.create()
 
     private val viewModel by lazy {
@@ -65,9 +72,41 @@ class ScheduledGroupListActivity : QkThemedActivity(), ScheduledGroupListView {
 
     override fun render(state: ScheduledGroupListState) {
         adapter.updateData(state.groups)
+
+        setTitle(when {
+            (state.selectedGroups > 0) ->
+                getString(R.string.compose_title_selected, state.selectedGroups)
+            else -> getString(R.string.scheduled_groups_title)
+        })
+
+        // show/hide menu items
+        toolbar.menu.findItem(R.id.delete)?.isVisible =
+            (state.selectedGroups > 0)
     }
 
     override fun onBackPressed() = backPressedIntent.onNext(Unit)
+
+    override fun clearSelection() = adapter.clearSelection()
+
+    override fun showDeleteDialog(groups: List<Long>) {
+        val count = groups.size
+        AlertDialog.Builder(this)
+            .setTitle(R.string.dialog_delete_title)
+            .setMessage(resources.getQuantityString(R.plurals.dialog_delete_group, count, count))
+            .setPositiveButton(R.string.button_delete) { _, _ -> deleteScheduledGroups.onNext(groups) }
+            .setNegativeButton(R.string.button_cancel, null)
+            .show()
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.scheduled_groups, menu)
+        return super.onCreateOptionsMenu(menu)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        optionsItemIntent.onNext(item.itemId)
+        return true
+    }
 
     override fun finishActivity() {
         finish()

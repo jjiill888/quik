@@ -95,7 +95,26 @@ class ScheduledGroupListAdapter @Inject constructor(
                 // Map display position to actual data position
                 val actualPosition = sortedIndices.getOrNull(adapterPosition) ?: adapterPosition
                 val group = data?.get(actualPosition)
-                group?.let { groupClicks.onNext(it.id) }
+                group?.let {
+                    // If in selection mode, toggle selection
+                    if (toggleSelection(it.id, force = false)) {
+                        view.isActivated = isSelected(it.id)
+                    } else {
+                        // Not in selection mode, navigate to detail
+                        groupClicks.onNext(it.id)
+                    }
+                }
+            }
+
+            view.setOnLongClickListener {
+                // Map display position to actual data position
+                val actualPosition = sortedIndices.getOrNull(adapterPosition) ?: adapterPosition
+                val group = data?.get(actualPosition)
+                group?.let {
+                    toggleSelection(it.id)
+                    view.isActivated = isSelected(it.id)
+                }
+                true
             }
         }
     }
@@ -109,6 +128,9 @@ class ScheduledGroupListAdapter @Inject constructor(
         view.groupName.text = group.name
         view.groupDescription.text = group.description
         view.groupDescription.visibility = if (group.description.isNotEmpty()) View.VISIBLE else View.GONE
+
+        // Update the selected/highlighted state
+        view.isActivated = isSelected(group.id)
 
         // Get cached stats for this group (no DB query needed!)
         val stats = groupStats[group.id]
@@ -143,5 +165,10 @@ class ScheduledGroupListAdapter @Inject constructor(
             view.messageCount.text = "0 messages"
             view.pendingCount.visibility = View.GONE
         }
+    }
+
+    override fun getItemId(position: Int): Long {
+        val actualPosition = sortedIndices.getOrNull(position) ?: position
+        return data?.get(actualPosition)?.id ?: -1
     }
 }

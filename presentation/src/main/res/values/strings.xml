@@ -109,6 +109,10 @@
         <item quantity="one">Are you sure you would like to delete this message?</item>
         <item quantity="other">Are you sure you would like to delete %d messages?</item>
     </plurals>
+    <plurals name="dialog_delete_group">
+        <item quantity="one">Are you sure you would like to delete this group and all its messages?</item>
+        <item quantity="other">Are you sure you would like to delete %d groups and all their messages?</item>
+    </plurals>
     <plurals name="dialog_send_now">
         <item quantity="one">Are you sure you would like to send this message now?</item>
         <item quantity="other">Are you sure you would like to send %d messages now?</item>

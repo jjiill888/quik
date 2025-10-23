@@ -24,8 +24,13 @@ import io.reactivex.Observable
 interface ScheduledGroupListView : QkView<ScheduledGroupListState> {
 
     val groupClicks: Observable<Long>
+    val groupsSelectedIntent: Observable<List<Long>>
     val createGroupIntent: Observable<*>
+    val optionsItemIntent: Observable<Int>
+    val deleteScheduledGroups: Observable<List<Long>>
     val backPressedIntent: Observable<Unit>
 
+    fun clearSelection()
+    fun showDeleteDialog(groups: List<Long>)
     fun finishActivity()
 }
