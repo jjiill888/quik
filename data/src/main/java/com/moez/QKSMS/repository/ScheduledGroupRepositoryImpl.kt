@@ -72,8 +72,13 @@ class ScheduledGroupRepositoryImpl @Inject constructor() : ScheduledGroupReposit
 
     override fun deleteScheduledGroup(id: Long) {
         Realm.getDefaultInstance().use { realm ->
-            realm.executeTransaction {
-                realm.where(ScheduledGroup::class.java)
+            realm.executeTransaction { transactionRealm ->
+                transactionRealm.where(ScheduledMessage::class.java)
+                    .equalTo("groupId", id)
+                    .findAll()
+                    .deleteAllFromRealm()
+
+                transactionRealm.where(ScheduledGroup::class.java)
                     .equalTo("id", id)
                     .findFirst()
                     ?.deleteFromRealm()

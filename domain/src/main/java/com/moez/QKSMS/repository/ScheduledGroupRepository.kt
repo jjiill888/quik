@@ -50,7 +50,7 @@ interface ScheduledGroupRepository {
     fun updateScheduledGroup(group: ScheduledGroup)
 
     /**
-     * Deletes a scheduled group
+     * Deletes a scheduled group along with any scheduled messages that belong to it.
      */
     fun deleteScheduledGroup(id: Long)
 

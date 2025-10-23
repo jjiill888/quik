@@ -24,15 +24,13 @@ import dev.octoshrimpy.quik.R
 import dev.octoshrimpy.quik.common.Navigator
 import dev.octoshrimpy.quik.common.base.QkViewModel
 import dev.octoshrimpy.quik.repository.ScheduledGroupRepository
-import dev.octoshrimpy.quik.repository.ScheduledMessageRepository
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
 import javax.inject.Inject
 
 class ScheduledGroupListViewModel @Inject constructor(
     private val navigator: Navigator,
-    private val scheduledGroupRepo: ScheduledGroupRepository,
-    private val scheduledMessageRepo: ScheduledMessageRepository
+    private val scheduledGroupRepo: ScheduledGroupRepository
 ) : QkViewModel<ScheduledGroupListView, ScheduledGroupListState>(ScheduledGroupListState()) {
 
     override fun bindView(view: ScheduledGroupListView) {
@@ -72,28 +70,15 @@ class ScheduledGroupListViewModel @Inject constructor(
 
         // Delete groups (fired after the confirmation dialog has been shown)
         view.deleteScheduledGroups
+            .observeOn(Schedulers.io())
             .doOnNext { groupIds ->
-                // Perform deletion on IO thread
                 groupIds.forEach { groupId ->
-                    // Delete all messages in the group first
-                    val messages = scheduledMessageRepo.getScheduledMessages()
-                        .where()
-                        .equalTo("groupId", groupId)
-                        .findAll()
-                        .createSnapshot()  // Create snapshot to avoid Realm threading issues
-                        .map { it.id }
-
-                    scheduledMessageRepo.deleteScheduledMessages(messages)
-
-                    // Then delete the group itself
                     scheduledGroupRepo.deleteScheduledGroup(groupId)
                 }
             }
-            .subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())
             .autoDisposable(view.scope())
             .subscribe {
-                // Clear selection on main thread
                 view.clearSelection()
             }
 
