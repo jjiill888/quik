@@ -52,6 +52,9 @@ class ScheduledMessageAdapter @Inject constructor(
     val clicks: Subject<Long> = PublishSubject.create()
     val completedClicks: Subject<Long> = PublishSubject.create()  // For clicking completed messages
 
+    // Control whether single-tap on pending messages should trigger edit action
+    var enablePendingMessageClicks: Boolean = true
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): QkBindingViewHolder<ScheduledMessageListItemBinding> {
         val binding = ScheduledMessageListItemBinding.inflate(
             LayoutInflater.from(parent.context), parent, false
@@ -73,10 +76,11 @@ class ScheduledMessageAdapter @Inject constructor(
                     if (message.completed) {
                         // For completed messages, show the conversation with search
                         completedClicks.onNext(message.id)  // Pass message ID, not conversation ID
-                    } else {
-                        // For pending messages, allow editing
+                    } else if (enablePendingMessageClicks) {
+                        // For pending messages, allow editing only if enabled
                         clicks.onNext(message.id)
                     }
+                    // Otherwise, do nothing on single tap
                 }
             }
 

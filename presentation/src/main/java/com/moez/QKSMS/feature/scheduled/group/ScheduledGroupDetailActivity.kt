@@ -63,6 +63,8 @@ class ScheduledGroupDetailActivity : QkThemedActivity(), ScheduledGroupDetailVie
         showBackButton(true)
         viewModel.bindView(this)
 
+        // Disable single-tap editing for pending messages in group detail view
+        scheduledMessageAdapter.enablePendingMessageClicks = false
         scheduledMessageAdapter.emptyView = empty
         messages.adapter = scheduledMessageAdapter
 
