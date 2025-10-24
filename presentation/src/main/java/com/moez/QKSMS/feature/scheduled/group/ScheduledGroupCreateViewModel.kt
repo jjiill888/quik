@@ -240,6 +240,15 @@ class ScheduledGroupCreateViewModel @Inject constructor(
             .subscribe(
                 { groupId ->
                     newState { copy(creating = false) }
+                    // Force main thread Realm to refresh before navigating
+                    // This ensures the list activity can see the newly created data
+                    try {
+                        io.realm.Realm.getDefaultInstance().use { realm ->
+                            realm.refresh()
+                        }
+                    } catch (e: Exception) {
+                        Timber.w(e, "Failed to refresh Realm before navigation")
+                    }
                     view.showGroupCreated(groupId as Long)
                 },
                 { error ->

@@ -46,8 +46,10 @@ class CreateScheduledGroupWithMessages @Inject constructor(
     override fun buildObservable(params: Params): Flowable<*> {
         return Flowable.fromCallable {
             val group = scheduledGroupRepository.createScheduledGroup(params.name, params.description)
+            timber.log.Timber.d("CreateScheduledGroup: created group with id=${group.id}")
 
             params.messages.forEach { message ->
+                timber.log.Timber.d("CreateScheduledGroup: saving message with groupId=${group.id}")
                 scheduledMessageRepository.saveScheduledMessage(
                     date = message.scheduledAtMillis,
                     subId = -1,
@@ -63,6 +65,7 @@ class CreateScheduledGroupWithMessages @Inject constructor(
             Completable.fromPublisher(updateScheduledMessageAlarms.buildObservable(Unit))
                 .blockingAwait()
 
+            timber.log.Timber.d("CreateScheduledGroup: returning groupId=${group.id}")
             group.id
         }
     }

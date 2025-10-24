@@ -72,6 +72,7 @@ class ScheduledGroupListAdapter @Inject constructor(
         val groups = data
 
         if (groups == null || !groups.isLoaded) {
+            android.util.Log.d("ScheduledGroupAdapter", "recalculateGroupStats: groups not loaded")
             sortedIndices = emptyList()
             groupStats.clear()
             return
@@ -80,15 +81,19 @@ class ScheduledGroupListAdapter @Inject constructor(
         val statsAccumulator = mutableMapOf<Long, MutableGroupStats>()
 
         val messages = scheduledMessages
+        android.util.Log.d("ScheduledGroupAdapter", "recalculateGroupStats: messages=${messages?.size}, valid=${messages?.isValid}, loaded=${messages?.isLoaded}")
+
         if (messages != null && messages.isValid) {
             if (!messages.isLoaded) {
                 // Wait until Realm has finished loading the latest version before
                 // calculating stats. A change listener will trigger another pass
                 // once the results are ready.
+                android.util.Log.d("ScheduledGroupAdapter", "recalculateGroupStats: messages not loaded yet, waiting")
                 return
             }
             messages.forEach { message ->
                 val groupId = message.groupId
+                android.util.Log.d("ScheduledGroupAdapter", "recalculateGroupStats: message id=${message.id}, groupId=$groupId, completed=${message.completed}")
                 if (groupId != 0L) {
                     val stats = statsAccumulator.getOrPut(groupId) { MutableGroupStats() }
                     stats.total += 1
@@ -98,6 +103,8 @@ class ScheduledGroupListAdapter @Inject constructor(
                 }
             }
         }
+
+        android.util.Log.d("ScheduledGroupAdapter", "recalculateGroupStats: statsAccumulator=$statsAccumulator")
 
         groupStats.clear()
 
@@ -123,8 +130,8 @@ class ScheduledGroupListAdapter @Inject constructor(
 
     override fun updateData(data: OrderedRealmCollection<ScheduledGroup>?) {
         super.updateData(data)
-        recalculateGroupStats()
-        notifyDataSetChanged()
+        // When groups data is updated, also refresh the messages to ensure accurate counts
+        refreshGroupStats()
     }
 
     /**
@@ -132,11 +139,17 @@ class ScheduledGroupListAdapter @Inject constructor(
      * Call this when returning to the list screen to ensure counts are up-to-date
      */
     fun refreshGroupStats() {
-        // Ensure scheduledMessages is initialized before recalculating
-        if (scheduledMessages == null) {
-            scheduledMessages = scheduledMessageRepo.getScheduledMessages()
-            scheduledMessages?.addChangeListener(scheduledMessagesListener)
-        }
+        android.util.Log.d("ScheduledGroupAdapter", "refreshGroupStats: called")
+
+        // Remove old listener if exists
+        scheduledMessages?.removeChangeListener(scheduledMessagesListener)
+
+        // Force re-query to get the latest data
+        // This ensures we're not using a stale Realm instance
+        scheduledMessages = scheduledMessageRepo.getScheduledMessages()
+        android.util.Log.d("ScheduledGroupAdapter", "refreshGroupStats: after re-query, messages.size=${scheduledMessages?.size}")
+
+        scheduledMessages?.addChangeListener(scheduledMessagesListener)
 
         // Force Realm to advance to the latest version before we read results.
         // Without this, the adapter can observe stale data immediately after
@@ -239,10 +252,12 @@ class ScheduledGroupListAdapter @Inject constructor(
 
     override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
         super.onAttachedToRecyclerView(recyclerView)
-        // Initialize scheduledMessages when attached to RecyclerView
-        if (scheduledMessages == null) {
-            scheduledMessages = scheduledMessageRepo.getScheduledMessages()
-        }
+        // Remove old listener if exists
+        scheduledMessages?.removeChangeListener(scheduledMessagesListener)
+
+        // Always get fresh messages when attaching to ensure we have latest data
+        scheduledMessages = scheduledMessageRepo.getScheduledMessages()
+
         scheduledMessages
             ?.takeIf { it.isValid }
             ?.realm

@@ -10,12 +10,18 @@ import javax.inject.Inject
 class ScheduledGroupRepositoryImpl @Inject constructor() : ScheduledGroupRepository {
 
     override fun createScheduledGroup(name: String, description: String): ScheduledGroup {
+        var createdGroupId: Long
         Realm.getDefaultInstance().use { realm ->
-            val id = (realm
+            val maxId = realm
                 .where(ScheduledGroup::class.java)
                 .max("id")
-                ?.toLong() ?: -1
-                    ) + 1
+            android.util.Log.d("ScheduledGroupRepo", "createScheduledGroup: maxId=$maxId")
+
+            // Start from 1 instead of 0, since groupId=0 means "not in any group"
+            val id = (maxId?.toLong() ?: 0) + 1
+            android.util.Log.d("ScheduledGroupRepo", "createScheduledGroup: new id=$id")
+
+            createdGroupId = id
 
             val now = System.currentTimeMillis()
             val group = ScheduledGroup(
@@ -27,8 +33,19 @@ class ScheduledGroupRepositoryImpl @Inject constructor() : ScheduledGroupReposit
             )
 
             realm.executeTransaction { realm.insertOrUpdate(group) }
+            android.util.Log.d("ScheduledGroupRepo", "createScheduledGroup: saved group with id=$id")
+        }
 
-            return group
+        // Query the group again from a fresh realm instance to get a managed object
+        return Realm.getDefaultInstance().use { realm ->
+            val found = realm.where(ScheduledGroup::class.java)
+                .equalTo("id", createdGroupId)
+                .findFirst()
+            android.util.Log.d("ScheduledGroupRepo", "createScheduledGroup: found group with id=${found?.id}")
+
+            found!!.let { realm.copyFromRealm(it) }.also {
+                android.util.Log.d("ScheduledGroupRepo", "createScheduledGroup: returning group with id=${it.id}")
+            }
         }
     }
 

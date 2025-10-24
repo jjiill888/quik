@@ -33,7 +33,24 @@ class AlarmManagerImpl @Inject constructor(private val context: Context) : Alarm
 
     override fun setAlarm(date: Long, intent: PendingIntent) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
-        alarmManager.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, date, intent)
+        try {
+            // Try to set exact alarm (requires SCHEDULE_EXACT_ALARM permission on Android 12+)
+            alarmManager.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, date, intent)
+        } catch (e: SecurityException) {
+            // Fall back to inexact alarm if exact alarm permission is not granted
+            // This is acceptable for scheduled messages as a small delay is tolerable
+            try {
+                alarmManager.setAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, date, intent)
+            } catch (e2: Exception) {
+                // Last resort: use basic setExact (may not work in Doze mode)
+                try {
+                    alarmManager.setExact(android.app.AlarmManager.RTC_WAKEUP, date, intent)
+                } catch (e3: Exception) {
+                    // If all else fails, log the error but don't crash
+                    android.util.Log.e("AlarmManagerImpl", "Failed to set alarm", e3)
+                }
+            }
+        }
     }
 
 }

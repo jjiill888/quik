@@ -74,10 +74,7 @@ class ScheduledGroupListActivity : QkThemedActivity(), ScheduledGroupListView {
         super.onResume()
         // Force adapter to refresh message counts when returning from other activities
         // This ensures counts are updated after adding/completing tasks in other screens
-        // Post the refresh to give Realm time to process any pending updates
-        recyclerView.post {
-            adapter.refreshGroupStats()
-        }
+        adapter.refreshGroupStats()
     }
 
     override fun render(state: ScheduledGroupListState) {
