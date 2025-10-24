@@ -81,7 +81,6 @@ class ScheduledGroupCreateViewModel @Inject constructor(
                         current.descriptionError == null &&
                         !current.creating &&
                         !current.importing &&
-                        current.importRowCount > 0 &&
                         current.importError.isNullOrBlank()
                 if (current.canCreate != canCreate) {
                     newState { copy(canCreate = canCreate) }
@@ -219,11 +218,6 @@ class ScheduledGroupCreateViewModel @Inject constructor(
     }
 
     private fun createGroup(name: String, description: String, view: ScheduledGroupCreateView) {
-        if (importedRows.isEmpty()) {
-            newState { copy(importError = context.getString(R.string.scheduled_group_import_required)) }
-            return
-        }
-
         newState { copy(creating = true, importError = null) }
 
         val params = CreateScheduledGroupWithMessages.Params(

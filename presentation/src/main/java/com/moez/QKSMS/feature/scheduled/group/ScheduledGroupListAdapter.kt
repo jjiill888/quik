@@ -62,6 +62,13 @@ class ScheduledGroupListAdapter @Inject constructor(
     private data class MutableGroupStats(var total: Int = 0, var completed: Int = 0)
 
     private fun recalculateGroupStats() {
+        // Ensure we are working with the latest Realm version before reading data
+        scheduledMessages
+            ?.takeIf { it.isValid }
+            ?.realm
+            ?.takeIf { !it.isClosed }
+            ?.refresh()
+
         val groups = data
 
         if (groups == null || !groups.isLoaded) {
@@ -74,6 +81,12 @@ class ScheduledGroupListAdapter @Inject constructor(
 
         val messages = scheduledMessages
         if (messages != null && messages.isValid) {
+            if (!messages.isLoaded) {
+                // Wait until Realm has finished loading the latest version before
+                // calculating stats. A change listener will trigger another pass
+                // once the results are ready.
+                return
+            }
             messages.forEach { message ->
                 val groupId = message.groupId
                 if (groupId != 0L) {
@@ -120,11 +133,21 @@ class ScheduledGroupListAdapter @Inject constructor(
      */
     fun refreshGroupStats() {
         // Ensure scheduledMessages is initialized before recalculating
-        // This fixes the issue where first-time group creation shows 0 counts
         if (scheduledMessages == null) {
             scheduledMessages = scheduledMessageRepo.getScheduledMessages()
             scheduledMessages?.addChangeListener(scheduledMessagesListener)
         }
+
+        // Force Realm to advance to the latest version before we read results.
+        // Without this, the adapter can observe stale data immediately after
+        // returning from the create flow, which made the pending/completed
+        // counts temporarily appear as 0 on first creation.
+        scheduledMessages
+            ?.takeIf { it.isValid }
+            ?.realm
+            ?.takeIf { !it.isClosed }
+            ?.refresh()
+
         recalculateGroupStats()
         notifyDataSetChanged()
     }
@@ -220,6 +243,11 @@ class ScheduledGroupListAdapter @Inject constructor(
         if (scheduledMessages == null) {
             scheduledMessages = scheduledMessageRepo.getScheduledMessages()
         }
+        scheduledMessages
+            ?.takeIf { it.isValid }
+            ?.realm
+            ?.takeIf { !it.isClosed }
+            ?.refresh()
         scheduledMessages?.addChangeListener(scheduledMessagesListener)
         recalculateGroupStats()
         notifyDataSetChanged()
