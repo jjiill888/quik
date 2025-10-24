@@ -15,12 +15,13 @@ class CsvImportParserTest {
             姓名,手机号,时间,短信内容
             甲,111111,2024-04-18 09:30,Hello World
             乙,222222,2024/04/19 09:30,Hi There
+            丙,333333,2026/10/24/09:00,Howdy
         """.trimIndent()
 
         val result = parser.parse(csv.byteInputStream(StandardCharsets.UTF_8))
 
         assertTrue(result.errors.isEmpty())
-        assertEquals(2, result.rows.size)
+        assertEquals(3, result.rows.size)
         assertEquals("甲", result.rows[0].name)
         assertEquals("111111", result.rows[0].phoneNumber)
         assertEquals("Hello World", result.rows[0].body)

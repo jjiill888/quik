@@ -200,6 +200,8 @@ class CsvImportParser @Inject constructor() {
             "yyyy-MM-dd HH:mm:ss",
             "yyyy/MM/dd HH:mm",
             "yyyy/MM/dd HH:mm:ss",
+            "yyyy/MM/dd/HH:mm",
+            "yyyy/MM/dd/HH:mm:ss",
             "yyyy.MM.dd HH:mm",
             "yyyy.MM.dd HH:mm:ss",
             "yyyy-MM-dd'T'HH:mm",

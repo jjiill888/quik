@@ -74,6 +74,13 @@ class ScheduledGroupDetailActivity : QkThemedActivity(), ScheduledGroupDetailVie
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Force adapter to refresh when returning from compose activity
+        // This ensures the message list is updated immediately after adding a new message
+        scheduledMessageAdapter.notifyDataSetChanged()
+    }
+
     override fun render(state: ScheduledGroupDetailState) {
         // Update toolbar title with group name
         toolbarTitle.text = state.groupName

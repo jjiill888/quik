@@ -114,6 +114,21 @@ class ScheduledGroupListAdapter @Inject constructor(
         notifyDataSetChanged()
     }
 
+    /**
+     * Force refresh of group statistics and UI
+     * Call this when returning to the list screen to ensure counts are up-to-date
+     */
+    fun refreshGroupStats() {
+        // Ensure scheduledMessages is initialized before recalculating
+        // This fixes the issue where first-time group creation shows 0 counts
+        if (scheduledMessages == null) {
+            scheduledMessages = scheduledMessageRepo.getScheduledMessages()
+            scheduledMessages?.addChangeListener(scheduledMessagesListener)
+        }
+        recalculateGroupStats()
+        notifyDataSetChanged()
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): QkViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.scheduled_group_list_item, parent, false)
